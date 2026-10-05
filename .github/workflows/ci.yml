@@ -1,0 +1,294 @@
+# CI: the checks that run on every pull request and every push to main. Each job below is one check,
+# and GitHub shows each by its name. Jobs that need a database start their own throwaway Postgres
+# service: nothing here ever touches your live site, and the settings below are made up for CI only.
+#
+#   test           lint, types and the tests
+#   types-fresh    the generated files (payload-types.ts, the admin's import map) are up to date
+#   migrations     the migrations apply, no migration is missing, removals are explained
+#   browser-checks the built site in a real browser at 390 and 1100 px, with axe (npm run check)
+#   ai-note        the pull request's AI note is filled in (pull requests only)
+#   leftovers      the Campus Cycle example is replaced (off until you switch it on)
+name: CI
+
+on:
+  pull_request:
+    # "edited": saving a changed description runs the checks again, so a fixed AI note (or a reason
+    # for a removal) turns green without a new commit.
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+# On a pull request, a newer push cancels the still-running check for the older one, so the pull
+# request never waits behind its own outdated run. Runs on main are never cancelled: every commit on
+# main gets its full result (a course check reads whether CI passed on that exact commit).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# CI only reads the repository.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      CI_REAL_POSTGRES: '1'
+      PAYLOAD_SECRET: test-secret-0123456789-0123456789
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+  # After a change to a collection, `npm run generate` rewrites src/payload-types.ts and the admin's
+  # import map. This check generates them again and fails if the committed ones differ: someone
+  # changed the model and forgot to run it.
+  types-fresh:
+    runs-on: ubuntu-latest
+
+    env:
+      # Generating reads the config, which names a database; it never connects to it.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PAYLOAD_SECRET: ci-only-secret-0123456789-0123456789
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run generate
+
+      - name: The generated files are committed and up to date
+        run: |
+          git diff --exit-code src/payload-types.ts "src/app/(payload)/admin/importMap.js" || {
+            echo "::error title=Generated files out of date::Run npm run generate on your own computer, then commit src/payload-types.ts and src/app/(payload)/admin/importMap.js."
+            exit 1
+          }
+
+  migrations:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PAYLOAD_SECRET: ci-only-secret-0123456789-0123456789
+
+    steps:
+      # fetch-depth 0: the whole history, so the removals check can tell which migrations are new.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Every committed migration, on an empty database (the guard allows it: this is not Neon).
+      - name: Migrations apply
+        run: npm run migrate
+
+      - name: No migration missing
+        run: node scripts/ci/migration-missing.mjs
+
+      - name: Removals are explained
+        if: github.event_name == 'pull_request'
+        env:
+          # The description goes in through a setting, never pasted into the command line itself.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/ci/removals.mjs
+
+  browser-checks:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PAYLOAD_SECRET: ci-only-secret-0123456789-0123456789
+      FIRST_ADMIN_EMAIL: editor@example.com
+      FIRST_ADMIN_PASSWORD: ci-only-password-0123456789
+      PLAYWRIGHT_BASE_URL: http://localhost:3100
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A pull request that changes only documents (docs/ or Markdown files) cannot change the site:
+      # the browser checks are skipped for it, to save minutes. Every later step reads this answer.
+      - name: Which files changed
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          site_files=$(git diff --name-only "$BASE_SHA"...HEAD | grep -v -E '^docs/|\.md$' || true)
+          if [ -z "$site_files" ]; then
+            echo "Only documents changed: the browser checks are skipped."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.run == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - if: steps.changes.outputs.run == 'true'
+        run: npm ci
+
+      # The browser Playwright downloads, kept between runs.
+      - uses: actions/cache@v4
+        if: steps.changes.outputs.run == 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the browser
+        if: steps.changes.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Next.js's build cache, kept between runs: later builds are faster.
+      - uses: actions/cache@v4
+        if: steps.changes.outputs.run == 'true'
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('package-lock.json') }}-
+
+      - name: Migrate and seed the database
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          npm run migrate
+          npm run seed
+
+      - name: Build the site
+        if: steps.changes.outputs.run == 'true'
+        run: npm run build
+
+      - name: Start the site
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          npm start -- -p 3100 > next-start.log 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl --silent --output /dev/null http://localhost:3100/; then exit 0; fi
+            sleep 1
+          done
+          echo "::error title=The site did not start::It did not answer within 60 seconds. Its log:"
+          cat next-start.log
+          exit 1
+
+      - name: Browser checks at 390 and 1100 px, with axe
+        if: steps.changes.outputs.run == 'true'
+        run: npm run check
+
+      - name: The site's log, when a check failed
+        if: failure() && steps.changes.outputs.run == 'true'
+        run: tail -n 200 next-start.log || true
+
+  # The AI note in the pull request's description (scripts/ci/ai-note.mjs). Pull requests only: a push
+  # to main has no description.
+  ai-note:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # The description goes in through a setting (PR_BODY), never pasted into the command line itself,
+      # so nothing anyone writes in a description can run as a command here.
+      - name: Check the AI note
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/ci/ai-note.mjs
+
+  # Has the project replaced the Campus Cycle example (scripts/ci/leftovers.mjs)? Off until you switch
+  # it on: on GitHub, Settings → Secrets and variables → Actions → Variables, add
+  # CAMPUS_CYCLE_LEFTOVERS with the value fail.
+  leftovers:
+    if: vars.CAMPUS_CYCLE_LEFTOVERS == 'fail'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Look for Campus Cycle leftovers
+        run: node scripts/ci/leftovers.mjs

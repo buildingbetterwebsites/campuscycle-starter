@@ -1,0 +1,256 @@
+/*
+ * THE DESIGN TOKENS: every colour, font, size, space and corner of the website, in one place.
+ *
+ * To restyle your own site, change these values first. Every component reads them, so one change here
+ * reaches every page. Tailwind CSS reads the @theme block below and turns each token into classes:
+ * --color-ink gives text-ink, bg-ink and border-ink; --spacing-section gives py-section; and so on.
+ *
+ *   Example 1, change the accent: the solid offset behind framed items and the marker on the page you
+ *   are on use --color-brand. Make it coral instead of mint:
+ *       --color-brand: var(--color-coral);
+ *
+ *   Example 2, change the heading font: in src/app/(site)/layout.tsx, load a second font from
+ *   next/font/google (for example Fraunces, with variable: '--font-fraunces'), add its .variable to the
+ *   <html> className next to the first, then here:
+ *       --font-heading: var(--font-fraunces), system-ui, serif;
+ *
+ * What the groups are for:
+ * - Colour. The colours of the course "Building better websites": navy ink for text and frames, a white
+ *   canvas, blue for links and the keyboard focus ring, and four bright accents (mint, purple, coral,
+ *   yellow) with a lighter "tint" and an even lighter "wash" each. Text on a coloured background stays
+ *   navy: the bright accents mark parts and states; they are never the colour of running text, because
+ *   most of them are too light to read on white.
+ * - States. success, warning, error and info each have a colour and a light background. A state is
+ *   never shown by colour alone: there is always a word too ("Error", "Saved").
+ * - Type. Hanken Grotesk (SIL Open Font Licence, free to share) for headings and text. The course
+ *   itself uses GT Flexa and Atlas Grotesk, but those fonts are bought, and their licence does not
+ *   allow giving them away in a template. Hanken Grotesk was already the course's own back-up font.
+ *   Headings are very heavy (800 to 900) to echo GT Flexa Black. If the font cannot load, the browser
+ *   uses its own system font. Sizes grow by about a quarter per step; the big ones grow with the
+ *   window (clamp). --container-reading keeps lines of text short enough to read (about 68 letters).
+ * - Space. Related things sit close together (--spacing-stack); separate groups get much more room
+ *   (--spacing-section). --spacing-gutter is the room between the content and the edge of the window.
+ * - Shape. Rounded corners, thin navy frames, and a SOLID coloured offset to the right and below a
+ *   framed item: never a blurred shadow.
+ * - Focus. The blue ring around whatever the keyboard is on. It is never removed: people who use a
+ *   keyboard need it to see where they are.
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* Colour: the course palette */
+  --color-ink: #001c54;
+  --color-ink-soft: #46597a;
+  --color-canvas: #ffffff;
+  --color-line: #cdd5e4;
+  --color-link: #0d51d7;
+  --color-focus: #0d51d7;
+  --color-blue-tint: #eaf0fd;
+
+  --color-mint: #33dfc8;
+  --color-mint-tint: #b5ebe4;
+  --color-mint-wash: #e4fbf8;
+  --color-purple: #705bfe;
+  --color-purple-tint: #ccc2ff;
+  --color-purple-wash: #f1eeff;
+  --color-coral: #ff6868;
+  --color-coral-tint: #ffb5b5;
+  --color-coral-wash: #fff0f0;
+  --color-yellow: #ffcf11;
+  --color-yellow-tint: #ffeeac;
+  --color-yellow-wash: #fff9df;
+
+  /* The site's signature colour: offsets behind framed items, the marker on the current page. */
+  --color-brand: var(--color-mint);
+
+  /* States: a colour for marks, a light background for boxes. The text on them stays ink. */
+  --color-success: var(--color-mint);
+  --color-success-wash: var(--color-mint-wash);
+  --color-warning: var(--color-yellow);
+  --color-warning-wash: var(--color-yellow-wash);
+  --color-error: var(--color-coral);
+  --color-error-wash: var(--color-coral-wash);
+  --color-info: var(--color-link);
+  --color-info-wash: var(--color-blue-tint);
+
+  /* Type: next/font (in layout.tsx) puts the font's real name in --font-hanken-grotesk. */
+  --font-heading: var(--font-hanken-grotesk), system-ui, sans-serif;
+  --font-body: var(--font-hanken-grotesk), system-ui, sans-serif;
+  --font-sans: var(--font-body);
+
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.65;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.55;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 1.3;
+  --text-2xl: 1.875rem;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: clamp(2.125rem, 1.6rem + 2.2vw, 3rem);
+  --text-3xl--line-height: 1.1;
+  --text-4xl: clamp(2.625rem, 1.7rem + 3.9vw, 4.5rem);
+  --text-4xl--line-height: 1.02;
+
+  --container-page: 74rem;
+  --container-reading: 68ch;
+
+  /* Space */
+  --spacing-stack: 0.75rem;
+  --spacing-block: 2rem;
+  --spacing-section: clamp(3.5rem, 2.5rem + 4vw, 6.5rem);
+  --spacing-gutter: clamp(1rem, 4vw, 3rem);
+
+  /* Shape */
+  --radius-control: 0.625rem;
+  --radius-frame: 0.875rem;
+  --radius-panel: 1.5rem;
+  --frame-width: 2px;
+  --offset-size: 6px;
+
+  /* Focus */
+  --focus-width: 3px;
+  --focus-offset: 3px;
+}
+
+/*
+ * shadcn/ui's own colour names, pointing at the tokens above. The parts in src/components/ui use our
+ * names directly; this block makes any part you add later with `npx shadcn add` match the site too.
+ */
+@theme inline {
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-canvas);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-canvas);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-ink);
+  --color-primary-foreground: var(--color-canvas);
+  --color-secondary: var(--color-blue-tint);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-blue-tint);
+  --color-muted-foreground: var(--color-ink-soft);
+  --color-accent: var(--color-blue-tint);
+  --color-accent-foreground: var(--color-ink);
+  --color-destructive: var(--color-error);
+  --color-border: var(--color-line);
+  --color-input: var(--color-ink);
+  --color-ring: var(--color-focus);
+}
+
+/* A framed item: a thin navy frame, rounded corners and a solid offset (offset-mint, offset-purple...). */
+@utility framed {
+  border: var(--frame-width) solid var(--color-ink);
+  border-radius: var(--radius-frame);
+  background-color: var(--color-canvas);
+  box-shadow: var(--offset-size) var(--offset-size) 0 0 var(--offset-color, var(--color-brand));
+}
+
+/* The colour of a framed item's offset: offset-mint, offset-purple, offset-coral, offset-yellow... */
+@utility offset-* {
+  --offset-color: --value(--color-*);
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background-color: var(--color-canvas);
+    font-family: var(--font-body);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    font-weight: 850;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-weight: 900;
+  }
+
+  /* Links are blue AND underlined: colour alone is not enough for everyone to spot a link. */
+  a {
+    color: var(--color-link);
+    text-decoration-line: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  /* The focus ring: on every link, button and field, whenever the keyboard is on it. Never removed. */
+  :focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
+  ::selection {
+    background-color: var(--color-mint-tint);
+    color: var(--color-ink);
+  }
+
+  /* Someone who asked their computer for less movement gets none. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+/*
+ * Text that comes from an editor's rich-text field (the about, contact and privacy pages): plain HTML
+ * without classes, so it is styled here, once.
+ */
+@utility rich-text {
+  & > * + * {
+    margin-top: 1rem;
+  }
+  & h2 {
+    margin-top: 2.75rem;
+    font-size: var(--text-xl);
+    line-height: var(--text-xl--line-height);
+  }
+  & h3 {
+    margin-top: 2rem;
+    font-size: var(--text-lg);
+  }
+  & h2 + *,
+  & h3 + * {
+    margin-top: 0.5rem;
+  }
+  & ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  & ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+  }
+  & li + li {
+    margin-top: 0.375rem;
+  }
+  & li::marker {
+    color: var(--color-ink-soft);
+  }
+  & p,
+  & li {
+    max-width: var(--container-reading);
+  }
+}
