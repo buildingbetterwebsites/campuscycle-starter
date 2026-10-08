@@ -4,10 +4,10 @@ What the site must do, written so that someone else can check it. Each requireme
 your users, and has a check that passes or fails on the live site. Fill in every place marked TODO, and
 add a row per requirement. Fill in the results at the end of the project, on the live site.
 
-| Id | Serves | Check | Result |
-| --- | --- | --- | --- |
-| R1 | TODO: the task or the need behind it | TODO: on the live site, what someone does, and what they must see | TODO: "passed" with the date you checked, or "not yet" with what is missing |
-| R2 | TODO: | TODO: | TODO: |
+| Id | Requirement | Serves | Check | Result |
+| --- | --- | --- | --- | --- |
+| R1 | TODO: who can do what, under which condition | TODO: the task or the need behind it | TODO: on the live site, what someone does, and what they must see | TODO: "passed" with the date you checked, or "not yet" with what is missing |
+| R2 | TODO: | TODO: | TODO: | TODO: |
 
 How to write a good check: name the page, the action and the exact result. For example:
 "On `/workshops`, choose the topic Brakes and gears and the level Beginner, then **Apply filters**:
