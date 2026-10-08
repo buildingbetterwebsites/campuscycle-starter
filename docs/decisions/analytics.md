@@ -13,12 +13,15 @@ TODO: the question analytics should answer for your site.
 ## Options considered
 
 At least two, each with its main advantage and drawback (for example: no analytics; Vercel Web
-Analytics; another tool).
+Analytics; Matomo, only if someone already hosts it for you).
 
 - TODO: option 1, its advantage and its drawback.
 - TODO: option 2, its advantage and its drawback.
 
 ## The decision
+
+Which option you chose. Once it is installed: what you installed, where its settings are, and how you
+checked that it does what you expected (the final rubric asks for it).
 
 TODO: the option you chose.
 

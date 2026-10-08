@@ -3,9 +3,11 @@
 Whether the site connects to another service, and to which. Its reader comes later, with one
 question: can I change this, and what happens if I do? Fill in every place marked TODO.
 
-A suggested list of kinds of integration to consider: a newsletter sign-up, a map, a calendar export,
-an e-mail service for confirmations, a payment provider (for test payments only). This list is only a
-suggestion: none of these has been tried with this starter, so check each one yourself.
+Choose one integration from the course's suggested list (Integration Patterns: APIs and Webhooks, Your
+integration project's candidates): a chat window (tawk.to), an e-mail service for confirmations
+(Resend), a booking calendar (Cal.com), a newsletter sign-up, or a map (OpenStreetMap). None of these has
+been tried with this starter, so check the one you choose yourself. Never a payment provider: the brief
+rules out payments.
 
 ## The question
 
@@ -21,6 +23,9 @@ At least two, each with its main advantage and drawback (no integration at all i
 - TODO: option 2, its advantage and its drawback.
 
 ## The decision
+
+Which option you chose. Once it is installed: what you installed, where its settings are, and how you
+checked that it does what you expected (the final rubric asks for it).
 
 TODO: the option you chose.
 

@@ -11,7 +11,8 @@ why things are the way they are, and how to change them.
   1. **The question:** what had to be decided, in one sentence.
   2. **Options considered:** at least two, each with its main advantage and drawback, including a
      simpler way, or doing nothing, where that is a real option.
-  3. **The decision:** which option you chose.
+  3. **The decision:** which option you chose; once it is installed, what you installed, where its
+     settings are, and how you checked it.
   4. **Why:** the reasons, each with its evidence.
   5. **Consequences:** what you accepted with the choice, the bad with the good.
   6. **Facts read on:** the date you read each provider's pages, with their links.

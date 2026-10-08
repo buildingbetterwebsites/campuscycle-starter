@@ -570,11 +570,11 @@ describe('the project document templates', () => {
     )
   })
 
-  it('each requirement has its id, what it serves, its check and its result', () => {
+  it('each requirement has its id, the requirement itself, what it serves, its check and its result', () => {
     const header = read('docs/requirements.md')
       .split(/\r?\n/)
       .find((line) => line.startsWith('|'))
-    expect(header).toBe('| Id | Serves | Check | Result |')
+    expect(header).toBe('| Id | Requirement | Serves | Check | Result |')
   })
 
   it('the decision records README names the same seven headings, in order', () => {
