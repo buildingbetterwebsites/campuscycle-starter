@@ -13,7 +13,7 @@ import { endpointId } from './endpoint.mjs'
 const NO_DATABASE_MESSAGE_PRODUCTION =
   'NOT CONFIGURED YET: there is no database. In Vercel: Storage → connect Neon (Postgres) to this project, then Redeploy.'
 const NO_DATABASE_MESSAGE_PREVIEW =
-  'NOT CONFIGURED YET: this preview has no database of its own. Connecting Neon to Production only (the usual first deploy) does not cover previews - see docs/guides/local-setup.md for giving previews their own database, then redeploy this preview.'
+  'NOT CONFIGURED YET: this preview has no database of its own. Your Neon database is connected to Production only. In Vercel: Storage → your Neon database → Projects → this project\'s … menu → Update Project Connection → tick Preview and "Create database branch for deployment: Preview" (docs/guides/local-setup.md#give-previews-their-own-database), then redeploy this preview.'
 const SHORT_SECRET_MESSAGE =
   'NOT CONFIGURED YET: PAYLOAD_SECRET is missing or shorter than 32 characters. In Vercel: Settings → Environment Variables → add PAYLOAD_SECRET (32 or more characters), then Redeploy.'
 const NOT_NEON_PRODUCTION_MESSAGE =
@@ -21,7 +21,7 @@ const NOT_NEON_PRODUCTION_MESSAGE =
 const MISMATCH_MESSAGE =
   "DATABASE SET UP WRONG: your database has two addresses (DATABASE_URL and DATABASE_URL_UNPOOLED, or STORAGE_URL and STORAGE_URL_UNPOOLED) that point at different databases. In Vercel: Storage → your Neon database → disconnect it from this project, connect it again, then Redeploy."
 const PREVIEW_IS_LIVE_MESSAGE =
-  "STOPPED: this preview is connected to your LIVE database, so anything done on the preview would change your real site. In Vercel: Settings → Environment Variables → make sure DATABASE_URL and DATABASE_URL_UNPOOLED (or STORAGE_URL and STORAGE_URL_UNPOOLED) for Preview are your preview branch's, not Production's (docs/guides/local-setup.md explains the preview branch), then redeploy."
+  "STOPPED: this preview is connected to your LIVE database, so anything done on the preview would change your real site. A preview needs its own Neon branch (preview/<your branch>). In Vercel: Storage → your Neon database → Projects → this project's … menu → Update Project Connection → tick \"Create database branch for deployment: Preview\"; and in Settings → Environment Variables, delete any DATABASE_URL or STORAGE_URL (or their _UNPOOLED twins) you added for Preview yourself. Then redeploy this preview (docs/guides/troubleshooting.md#preview-live-database)."
 
 /**
  * Should the Vercel build run migrations, write the production marker, and run the seed?
@@ -83,9 +83,14 @@ export function decideBuild({ env, databaseUrl, unpooledUrl, marker, secret = pr
   // missing marker (an unproven, possibly-empty database), and never when the marker names this exact
   // endpoint (a preview environment variable pointed at the live database by mistake - that is not
   // just "do not migrate", it is dangerous enough to stop the build outright).
+  // The branch Neon makes for each preview (preview/<git branch>, when the Neon connection has "Create
+  // database branch for deployment: Preview" ticked) is a copy of the live database, so it carries the
+  // live marker too. That is exactly the proof wanted here: every Neon branch has its own endpoint, so
+  // the copied marker names production's endpoint, never the branch's own. Only a preview that still
+  // gets production's own address (branching off, or an address added for Preview by hand) matches.
   if (ownId === null) {
     return refuse(
-      'not running on this preview (its database is not a Neon database, so this starter cannot tell whether it is a safe copy; previews should use your Neon preview branch — see docs/guides/local-setup.md).',
+      'not running on this preview (its database is not a Neon database, so this starter cannot tell whether it is a safe copy; previews should use the Neon branch made for each preview — see docs/guides/local-setup.md#give-previews-their-own-database).',
     )
   }
   if (marker === ownId) {

@@ -2,8 +2,8 @@
 
 This guide comes after [your first hour](first-hour.md): your live site works, and CI is green. Now
 you set up the starter on your own computer, so you can change the content model (the collections)
-and try changes before they reach your live site. At the end, you give pull requests a preview with a
-database of its own.
+and try changes before they reach your live site. At the end, you see how each pull request's preview
+gets a database of its own.
 
 **Time:** two to three hours, the first time.
 
@@ -192,47 +192,53 @@ then reset your preview database ([Reset the preview database](#reset-the-previe
 ## Give previews their own database
 
 Every pull request gets a **preview**: a copy of your site at its own address, built by Vercel. A
-preview needs a database too. Not your live one: a preview is for trying things out. This section
-gives previews a database of their own: a **branch** of your live Neon database, a copy that you can
-throw away and make again.
+preview needs a database too. Not your live one: a preview is for trying things out.
 
-**Do this only after your live site's first green deploy.** The preview branch must be a copy of a
-live database that has its tables. A branch made earlier is empty, and previews will not change its
-tables (see [MIGRATIONS: not running on this preview](troubleshooting.md#preview-not-migrated)).
+**Neon makes it for you.** In your first hour you connected Neon to **Production** and **Preview**,
+with **Create database branch for deployment: Preview** ticked
+([Step 8](first-hour.md#step-8-connect-neon-to-production-and-preview)). So for every preview, Neon
+makes a **branch** of your live database: a copy, named `preview/<your branch>` (after your Git
+branch). Vercel gives that preview the branch's address as its own `DATABASE_URL`. You make no
+branch and paste no address yourself.
 
-### Create the preview branch
+**You should see:**
 
-1. In Vercel, open your project's **Storage** tab, then your Neon database. Its page has a button
-   that opens the database in Neon's own console; click it. (Its name can differ, for example
-   **Open in Neon**.)
-2. In Neon, open **Branches** and click **New branch**.
-3. **Name:** `preview`. **Parent branch:** your main branch (the live database). If Neon asks which
-   data to copy, keep the current data.
-4. Click **Create new branch** (or **Create**).
+- In the preview's build log: `MIGRATIONS: running (a proven copy of production)`. Your pull
+  request's migrations run on the copy, never on your live database.
+- In Neon (Vercel: **Storage** → your Neon database → the button that opens it in Neon, for example
+  **Open in Neon**), under **Branches**: a branch `preview/<your branch>` next to your main branch.
 
-### Connect it to Vercel's Preview environment
+Bookings and edits on the preview stay in its branch: they never reach your live site. Later builds
+of the same Git branch keep using the same Neon branch.
 
-1. In Neon, click **Connect**, and choose the `preview` branch in the dialog.
-2. Copy two connection strings: the **pooled** one (the one shown first, with **Connection pooling**
-   on), and the one with **Connection pooling** switched off (the direct one).
-3. In Vercel, open **Settings** → **Environment Variables**, and add two variables, both for
-   **Preview** only:
+**Redeploy a preview:** push a new commit to its branch, or in Vercel open **Deployments**, find the
+preview (its environment says **Preview**), click its **…** menu, then **Redeploy**.
 
-   | Name | Value |
-   | --- | --- |
-   | `DATABASE_URL` | the `preview` branch's **pooled** connection string |
-   | `DATABASE_URL_UNPOOLED` | the `preview` branch's **direct** connection string |
+**Images on previews:** your Blob store is connected to Production only, so previews show no images
+and cannot store uploaded ones
+([Images do not upload on a preview](troubleshooting.md#images-do-not-upload-on-a-preview)). That is
+expected. Try image uploads on your own computer instead.
 
-   If the variables Neon added for Production are called `STORAGE_URL` and `STORAGE_URL_UNPOOLED`
-   instead, use those two names here.
+### Neon connected to Production only?
 
-**You should see:** the next pull request's preview build log shows
-`MIGRATIONS: running (a proven copy of production)`. The preview then has its own data: bookings and
-edits on the preview never reach your live site.
+Then a preview has no database, and its build stops with
+[NOT CONFIGURED YET: this preview has no database of its own](troubleshooting.md#preview-no-database).
+Connect Neon to Preview too:
 
-**Images on previews:** your Blob store is connected to Production only, so previews cannot store
-uploaded images ([Images do not upload on a preview](troubleshooting.md#images-do-not-upload-on-a-preview)).
-Try image uploads on your own computer instead.
+1. In Vercel, open **Storage**, then your Neon database, then its **Projects** tab.
+2. On your project's row, click the **…** menu, then **Update Project Connection**.
+3. Tick **Preview**, and under **Create database branch for deployment** tick **Preview**. Save.
+4. Did you once make a `preview` branch in Neon by hand, and add `DATABASE_URL` and
+   `DATABASE_URL_UNPOOLED` (or `STORAGE_URL` and `STORAGE_URL_UNPOOLED`) for **Preview** yourself? In
+   **Settings** → **Environment Variables**, delete those two. In Neon you can delete that old
+   `preview` branch too.
+5. Redeploy the preview.
+
+### Old preview branches
+
+Neon's free plan allows only a limited number of branches. When a pull request is merged, its
+`preview/…` branch is no longer needed: in Neon, open **Branches**, click the branch's **⋮** menu,
+then **Delete**. Never delete your main branch: that is your live database.
 
 ## Reset the preview database
 
@@ -241,14 +247,15 @@ one. It never changes a database it cannot prove is a copy, and a preview whose 
 live database stops with
 [STOPPED](troubleshooting.md#preview-live-database).
 
-Sometimes the preview branch gets out of step: after you created a migration again, or when another
-pull request changed its tables first. The preview's build log then says
-`MIGRATIONS: FAILED ON THE PREVIEW DATABASE (build continues)`. Reset the branch:
+Sometimes a preview's branch gets out of step: after you created a migration again, or after you
+merged `main` into your branch. The preview's build log then says
+`MIGRATIONS: FAILED ON THE PREVIEW DATABASE (build continues)`. Reset that preview's branch:
 
-1. In Neon, open **Branches**, then `preview`.
+1. In Neon, open **Branches**, then `preview/<your branch>` (the branch with your pull request's
+   Git branch in its name).
 2. Choose **Reset from parent** (in the branch's **⋮** menu, or its own button on the branch's
    page), and confirm if Neon asks. The branch becomes a fresh copy of your live database.
-3. In Vercel, redeploy the preview.
+3. In Vercel, redeploy the preview (Deployments → the preview → **…** → **Redeploy**).
 
 ## No Node on your computer? Use a Codespace
 

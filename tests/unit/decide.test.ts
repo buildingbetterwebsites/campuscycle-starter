@@ -143,10 +143,43 @@ describe('decideBuild', () => {
       secret: SECRET,
     })
     expect(decision.migrate).toBe(false)
-    // Exact wording, verbatim, now naming the STORAGE_* names Neon can choose too.
+    // Exact wording, verbatim (the course quotes it): the fix is Neon's automatic preview branch.
     expect(decision.fatal).toBe(
-      "STOPPED: this preview is connected to your LIVE database, so anything done on the preview would change your real site. In Vercel: Settings → Environment Variables → make sure DATABASE_URL and DATABASE_URL_UNPOOLED (or STORAGE_URL and STORAGE_URL_UNPOOLED) for Preview are your preview branch's, not Production's (docs/guides/local-setup.md explains the preview branch), then redeploy.",
+      "STOPPED: this preview is connected to your LIVE database, so anything done on the preview would change your real site. A preview needs its own Neon branch (preview/<your branch>). In Vercel: Storage → your Neon database → Projects → this project's … menu → Update Project Connection → tick \"Create database branch for deployment: Preview\"; and in Settings → Environment Variables, delete any DATABASE_URL or STORAGE_URL (or their _UNPOOLED twins) you added for Preview yourself. Then redeploy this preview (docs/guides/troubleshooting.md#preview-live-database).",
     )
+  })
+
+  // The branch Neon makes for each preview ("Create database branch for deployment: Preview") is a copy
+  // of the live database, made AFTER production wrote its marker: so the copy carries the live marker
+  // too. Real-shaped Neon hosts, as Vercel hands them to a preview build.
+  const LIVE_ID = 'ep-quiet-river-a2b3c4d5'
+  const BRANCH_ID = 'ep-misty-field-a9z8y7x6'
+  const neon = (id: string, pool: boolean) =>
+    `postgresql://neondb_owner:secret@${id}${pool ? '-pooler' : ''}.eu-central-1.aws.neon.tech/neondb?sslmode=require`
+
+  it("preview on Neon's automatic branch (a copy of live, carrying live's marker): migrates, is not stopped", () => {
+    const decision = decideBuild({
+      env: 'preview',
+      databaseUrl: neon(BRANCH_ID, true),
+      unpooledUrl: neon(BRANCH_ID, false),
+      marker: LIVE_ID, // copied from the live database with everything else
+      secret: SECRET,
+    })
+    expect(decision.fatal).toBeUndefined()
+    expect(decision).toMatchObject({ migrate: true, writeMarker: false, seed: false })
+    expect(decision.reason).toBe('running (a proven copy of production)')
+  })
+
+  it("preview that still gets live's own address (branching not ticked): STOPPED, even though the marker is the same copy", () => {
+    const decision = decideBuild({
+      env: 'preview',
+      databaseUrl: neon(LIVE_ID, true),
+      unpooledUrl: neon(LIVE_ID, false),
+      marker: LIVE_ID,
+      secret: SECRET,
+    })
+    expect(decision.fatal).toContain('STOPPED: this preview is connected to your LIVE database')
+    expect(decision.migrate).toBe(false)
   })
 
   it('preview, no production marker recorded yet: refuses, with a beginner-friendly explanation', () => {
@@ -175,7 +208,7 @@ describe('decideBuild', () => {
     expect(decision.migrate).toBe(false)
     expect(decision.fatal).toBeUndefined()
     expect(decision.reason).toBe(
-      'not running on this preview (its database is not a Neon database, so this starter cannot tell whether it is a safe copy; previews should use your Neon preview branch — see docs/guides/local-setup.md).',
+      'not running on this preview (its database is not a Neon database, so this starter cannot tell whether it is a safe copy; previews should use the Neon branch made for each preview — see docs/guides/local-setup.md#give-previews-their-own-database).',
     )
   })
 
@@ -277,6 +310,11 @@ describe('decideLocal', () => {
 
   it('allows a non-Neon host outright (for example a local Postgres, or PGlite)', () => {
     const decision = decideLocal({ databaseUrl: NOT_NEON, marker: null })
+    expect(decision.allowed).toBe(true)
+  })
+
+  it("allows a preview's automatic Neon branch: a copy of live whose copied marker names live's endpoint, not its own", () => {
+    const decision = decideLocal({ databaseUrl: pooled('ep-misty-field-a9z8y7x6'), marker: 'ep-quiet-river-a2b3c4d5' })
     expect(decision.allowed).toBe(true)
   })
 

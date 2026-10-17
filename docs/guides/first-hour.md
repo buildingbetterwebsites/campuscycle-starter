@@ -90,14 +90,21 @@ repository, and come back.
 ### Step 5: add the three settings
 
 Open **Environment Variables**. This starter needs three settings: `PAYLOAD_SECRET`,
-`FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD`. Vercel may already show a row for each of them, with
-an empty value: it can read their names from the starter's `.env.example` file. Fill in each value:
+`FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD`. Vercel does not fill them in for you: you type
+each name and its value yourself.
+
+1. Type the name under **Key** and the value under **Value**.
+2. Click **Add More** (or **Add**) for the next row, and repeat for the other two.
 
 | Name | What to type |
 | --- | --- |
 | `PAYLOAD_SECRET` | A random text of **at least 32 characters** that you make up, for example from a password manager's generator, or type a long random line of letters and digits, at least 32. It signs log-ins; nobody ever types it. |
 | `FIRST_ADMIN_EMAIL` | The e-mail address you will log in to `/admin` with. The site sends no e-mail to it. |
-| `FIRST_ADMIN_PASSWORD` | A new password that you use nowhere else. Write it down in your password manager. |
+| `FIRST_ADMIN_PASSWORD` | A new password that you use nowhere else. |
+
+**Save `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD` in your password manager now.** Vercel never
+shows the password again, and you log in to your live site's `/admin` with them later in the course
+(in W5 too).
 
 If Vercel lets you choose where a setting applies, choose **Production and Preview**.
 
@@ -105,9 +112,7 @@ If Vercel lets you choose where a setting applies, choose **Production and Previ
 
 **Something else?**
 
-- No rows? Type the name under **Key** and the value under **Value**. Click **Add More** (or
-  **Add**) for the next row, and repeat for the other two.
-- More rows than these three, with empty values: delete the empty extra rows.
+- More rows than these three (for example after pasting a whole file): delete the extra rows.
 - Never add a `DATABASE_URL` here yourself: connecting the database adds it for you (Part C).
 
 These three are secret. They live only in Vercel (and later in your own `.env.local`), never in a
@@ -147,55 +152,72 @@ file chooses Frankfurt. Also choose Frankfurt for the database: you cannot move 
 3. **Browse Storage** shows Neon and Blob. Choose **Neon**, then continue.
 4. Accept the free plan. If Vercel asks to create a Neon account for you, accept: Vercel makes it,
    and you do not need to sign up at Neon yourself.
-5. **Region:** choose **Frankfurt (eu-central-1)**. (Some screens say **AWS Europe Central 1
-   (Frankfurt)**.)
-6. Create the database.
+5. **Region:** it starts on Washington. Choose **Frankfurt (eu-central-1)** instead. (Some screens
+   say **AWS Europe Central 1 (Frankfurt)**.)
+6. **Auth** (Neon Auth): it is switched on. **Switch it off.** The starter has its own users and its
+   own log-in.
+7. Create the database.
 
-![Vercel's Storage tab, "Browse Storage" with Neon and Blob, and Neon's form with the region Frankfurt (eu-central-1)](img/first-hour-07.png)
+![Vercel's Storage tab, "Browse Storage" with Neon and Blob, and Neon's form with the region Frankfurt (eu-central-1) and Auth switched off](img/first-hour-07.png)
 
-### Step 8: connect Neon to Production only
+### Step 8: connect Neon to Production and Preview
 
 Vercel now asks how to connect the database to your project.
 
-1. **Environments:** tick **Production** only. **Untick Preview and Development.** Your live site gets
-   this database; previews get a database of their own later, in the
-   [local set-up guide](local-setup.md#give-previews-their-own-database).
+1. **Environments:** tick **Production** and **Preview**. **Untick Development**: your own computer
+   has a database of its own.
 2. **Custom prefix:** leave it as it is. (Whether it says `DATABASE` or `STORAGE`: the starter
    accepts both.)
-3. **Create database branch for deployment** (an option to give each deployment, for example each
-   preview, a database branch of its own; on some screens it is under **Advanced Options**): leave
-   it **off**.
+3. **Create database branch for deployment** (on some screens under **Advanced Options**): tick
+   **Preview**. Leave **Production** unticked.
 4. Click **Connect**.
 
-![The "Connect Project" dialog: only Production ticked, the prefix left as it is, "Create database branch for deployment" unticked](img/first-hour-08.png)
+![The "Connect Project" dialog: Production and Preview ticked, the prefix left as it is, and "Create database branch for deployment: Preview" ticked](img/first-hour-08.png)
 
 **You should see:** the Neon database listed in your project's **Storage** tab.
+
+**Why Preview, with a branch?** Your live site gets this database. Every preview (a copy of your
+site that Vercel builds for a pull request) gets a **branch** of it: Neon makes a copy of your live
+database for that preview, named `preview/<your branch>`, and Vercel gives the preview that copy's
+address. Bookings and edits on a preview never reach your live site. You make nothing by hand
+([more in the local set-up guide](local-setup.md#give-previews-their-own-database)).
 
 ### Step 9: create the Blob store for images
 
 1. In **Storage**, click **Create Storage** again, and choose **Blob**.
 2. Give it a name, for example `campuscycle-images`.
-3. **Choose Public.** If Vercel suggests **Private**, change it: your site shows these images to
+3. **Region:** choose **Frankfurt**, next to your database.
+4. **Choose Public.** If Vercel suggests **Private**, change it: your site shows these images to
    everyone, so they must be **Public**. You cannot change this after the store is made.
-4. Create the store.
+5. **The token:** tick **"Add a read-write token env var"** (its full name can be longer, for example
+   "Add a read-write token env var to this connection"). Without that setting
+   (`BLOB_READ_WRITE_TOKEN`), your site cannot store images.
+6. Create the store.
 
-![Vercel's form for a new Blob store, with Public chosen instead of the suggested Private](img/first-hour-09.png)
+![Vercel's form for a new Blob store: the region Frankfurt, Public chosen instead of the suggested Private, and "Add a read-write token env var" ticked](img/first-hour-09.png)
 
-### Step 10: connect Blob to Production, with its token
+**You should see:** the Blob store in your project's **Storage** tab. Vercel connects it to your
+project at once, for **Production** and **Preview**. The next step takes Preview off.
 
-1. **Environments:** tick **Production** only. If **Preview** or **Development** is ticked, untick
-   it: previews must not store images in your live site's store.
-2. **Prefix:** leave it as it is.
-3. **The token:** if the dialog has a box **"Add a read-write token env var to this connection"**,
-   tick it. Without that setting (`BLOB_READ_WRITE_TOKEN`), your site cannot store images.
-4. Click **Connect**.
-5. Check: open **Settings** → **Environment Variables**. The list now has `BLOB_READ_WRITE_TOKEN`
-   for Production. (You also see the database's settings there, such as `DATABASE_URL`. Never copy
-   any of their values.)
+### Step 10: connect Blob to Production only
 
-![The Blob "Connect Project" dialog: Production ticked, the prefix left as it is, and "Add a read-write token env var to this connection" ticked](img/first-hour-10.png)
+Previews must not store images in your live site's store. So connect it to Production only.
 
-**Something else?** If you forget step 10.3, the next build stops with "Images cannot be stored". See
+1. Open the Blob store, then its **Projects** tab.
+2. On your project's row, click the **…** menu, then **Update Project Connection**.
+3. **Environments:** keep **Production** ticked. **Untick Preview** (and **Development**, if it is
+   ticked).
+4. Keep the read-write token ticked, if the dialog shows it. Save.
+5. Check: open your project's **Settings** → **Environment Variables**. The list has
+   `BLOB_READ_WRITE_TOKEN` for Production only. (You also see the database's settings there, such as
+   `DATABASE_URL`. Never copy any of their values.)
+
+![The Blob store's "Update Project Connection" dialog: only Production ticked](img/first-hour-10.png)
+
+**Previews show no images.** That is expected: only your live site (and your own computer) can
+store and show them.
+
+**Something else?** If you forget step 9.5, the next build stops with "Images cannot be stored". See
 [the troubleshooting guide](troubleshooting.md#no-blob-store).
 
 ### Step 11: redeploy (never "Promote to Production")
@@ -384,9 +406,10 @@ You may try a booking. Use made-up details only: this is a practice project, and
 ![GitHub's "Commit changes" dialog, with "Commit directly to the main branch" chosen](img/first-hour-20.png)
 
 **Something else?** You chose **Create a new branch for this commit and start a pull request** by
-mistake? Then Vercel builds a preview, which stops with "NOT CONFIGURED YET: this preview has no
-database of its own". That is expected. [The troubleshooting guide](troubleshooting.md#preview-no-database)
-says how to finish.
+mistake? Then Vercel builds a preview of that branch, with its own copy of your database, and your
+live site does not have the change yet. On GitHub, open the pull request that commit started. Fill in
+its AI note (under `## AI note: what I asked AI, and what I checked`; "No AI used." is fine), then
+**Merge pull request**. The change then reaches `main`, and your live site is built again.
 
 ### Step 19: wait for Vercel
 
@@ -466,5 +489,5 @@ The course app's **Check my work** looks at your live site.
 - Never copy your live database's address to your own computer. `npm run dev`, `npm run migrate` and
   `npm run seed` refuse it, but `npm run build` and `npm start` do not.
 
-**Next:** working on your own computer, and giving previews their own database:
+**Next:** working on your own computer, and how previews get their own database:
 [the local set-up guide](local-setup.md).

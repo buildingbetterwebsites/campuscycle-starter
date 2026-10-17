@@ -20,10 +20,10 @@ When you add one:
 | `first-hour-04.png` | Step 4: name the project | Vercel's "Configure Project" screen: the project name campuscycle-mina and the framework preset Next.js |
 | `first-hour-05.png` | Step 5: add the three settings | Vercel's "Environment Variables" section with the three rows PAYLOAD_SECRET, FIRST_ADMIN_EMAIL and FIRST_ADMIN_PASSWORD filled in, and "Production and Preview" chosen |
 | `first-hour-06.png` | Step 6: deploy, and expect it to stop | Vercel's build log of the first deployment, failed, ending with "NOT CONFIGURED YET: there is no database." |
-| `first-hour-07.png` | Step 7: create the Neon database | Vercel's Storage tab, "Browse Storage" with Neon and Blob, and Neon's form with the region Frankfurt (eu-central-1) |
-| `first-hour-08.png` | Step 8: connect Neon to Production only | The "Connect Project" dialog: only Production ticked, the prefix left as it is, "Create database branch for deployment" unticked |
-| `first-hour-09.png` | Step 9: create the Blob store for images | Vercel's form for a new Blob store, with Public chosen instead of the suggested Private |
-| `first-hour-10.png` | Step 10: connect Blob to Production, with its token | The Blob "Connect Project" dialog: Production ticked, the prefix left as it is, and "Add a read-write token env var to this connection" ticked |
+| `first-hour-07.png` | Step 7: create the Neon database | Vercel's Storage tab, "Browse Storage" with Neon and Blob, and Neon's form with the region Frankfurt (eu-central-1) and Auth switched off |
+| `first-hour-08.png` | Step 8: connect Neon to Production and Preview | The "Connect Project" dialog: Production and Preview ticked, the prefix left as it is, and "Create database branch for deployment: Preview" ticked |
+| `first-hour-09.png` | Step 9: create the Blob store for images | Vercel's form for a new Blob store: the region Frankfurt, Public chosen instead of the suggested Private, and "Add a read-write token env var" ticked |
+| `first-hour-10.png` | Step 10: connect Blob to Production only | The Blob store's "Update Project Connection" dialog: only Production ticked |
 | `first-hour-11.png` | Step 11: redeploy (never "Promote to Production") | Vercel's Deployments tab: the failed deployment's "…" menu open, with "Redeploy" in it |
 | `first-hour-12.png` | Step 11: redeploy (never "Promote to Production") | Vercel's build log of the redeploy, with the lines "MIGRATIONS: verified committed migrations" and "SEED: verified" |
 | `first-hour-13.png` | Step 12: open your live site | The live site's home page: the Campus Cycle title, the two buttons "Find a workshop" and "Repair clinic", and the panel "The repair clinic opens soon" |
