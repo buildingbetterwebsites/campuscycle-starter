@@ -180,6 +180,9 @@ const MESSAGES: Message[] = [
   { file: 'scripts/guard.mjs', code: 'REFUSED: ${conflictMessage(error)}', heading: 'REFUSED: Conflicting' },
   { file: 'scripts/lib/messages.mjs', code: 'NOT RUNNING: nothing answers at', heading: 'NOT RUNNING: nothing answers at' },
   { file: 'scripts/lib/messages.mjs', code: 'NOT YOURS: another program answers at', heading: 'NOT YOURS: another program answers at' },
+  { file: 'scripts/lib/messages.mjs', code: "NOT RUNNING: your laptop's database at", heading: "NOT RUNNING: your laptop's database at … takes no connections" },
+  { file: 'scripts/lib/messages.mjs', code: 'MIGRATIONS: FAILED. The migration stopped halfway', heading: 'FAILED. The migration (or the seed) stopped halfway' },
+  { file: 'scripts/lib/messages.mjs', code: 'SEED: FAILED. The seed stopped halfway', heading: 'FAILED. The migration (or the seed) stopped halfway' },
   { file: 'scripts/lib/messages.mjs', code: "NOT RUNNING: your laptop's database could not start", heading: "NOT RUNNING: your laptop's database could not start" },
   { file: 'scripts/build.mjs', code: 'MIGRATIONS: FAILED ON THE PREVIEW DATABASE' },
   {

@@ -13,9 +13,18 @@ import nextEnv from '@next/env'
 const { loadEnvConfig: loadEnvConfigFromNext } = nextEnv
 
 import { databaseEnvironment } from './lib/databaseEnv.mjs'
-import { couldNotStartMessage, notOursMessage, nothingAnswersMessage, reachMessage, STARTED_LAPTOP_DATABASE } from './lib/messages.mjs'
+import {
+  couldNotStartMessage,
+  notAcceptingMessage,
+  notOursMessage,
+  nothingAnswersMessage,
+  reachMessage,
+  STARTED_LAPTOP_DATABASE,
+  STOPPED_EARLY_EXIT_CODE,
+  stoppedEarlyMessage,
+} from './lib/messages.mjs'
 import { answers, isLaptopDatabase, localAddress } from './lib/localDatabase.mjs'
-import { ensureLaptopDatabase, NOT_OURS } from './lib/laptopDatabase.mjs'
+import { databaseProblem, ensureLaptopDatabase, NOT_OURS } from './lib/laptopDatabase.mjs'
 import { migrationEnv } from './lib/migrationEnv.mjs'
 import { endpointId } from './lib/endpoint.mjs'
 import { decideLocal } from './lib/decide.mjs'
@@ -181,7 +190,7 @@ function unreachable(error) {
 /**
  * Runs the given guard subcommand. Exported so a test can call it without spawning a process.
  *
- * `loadEnv`, `readMarker`, `answersAt`, `ensureDatabase`, `migrate`, `seed` and `command` are
+ * `loadEnv`, `readMarker`, `answersAt`, `ensureDatabase`, `checkDatabase`, `migrate`, `seed` and `command` are
  * injectable (all default to the real ones) so a test can run this without loading the developer's own
  * real `.env`/`.env.local` files, opening a database connection, starting your laptop's database or
  * starting the migration or seed runner or `next dev`. `loadEnv`'s return value is never
@@ -194,6 +203,7 @@ function unreachable(error) {
  *   readMarker?: (url: string) => Promise<string | null>,
  *   answersAt?: (address: { host: string, port: number }) => Promise<boolean>,
  *   ensureDatabase?: () => Promise<{ started: boolean, stop: () => Promise<void> }>,
+ *   checkDatabase?: (url: string) => Promise<string | null>,
  *   command?: (commandLine: string) => Promise<number>,
  *   migrate?: (variables: Record<string, string | undefined>) => Promise<{ status: number | null, stdout?: string | null }>,
  *   seed?: (args: string[]) => Promise<{ status: number | null, stdout?: string | null }>,
@@ -206,6 +216,7 @@ export async function run(
     readMarker,
     answersAt = answers,
     ensureDatabase = ensureLaptopDatabase,
+    checkDatabase = databaseProblem,
     migrate = runMigration,
     seed = runSeed,
     command: runCommandLine = runCommand,
@@ -286,6 +297,14 @@ export async function run(
         else console.error(couldNotStartMessage(address, error instanceof Error ? error.message : String(error)))
         return 1
       }
+      // It answers, but does it take a connection and answer a query? If not, say so now, instead of
+      // letting the command wait for an answer that never comes.
+      const problem = await checkDatabase(databaseUrl)
+      if (problem) {
+        console.error(notAcceptingMessage(address, problem))
+        await started?.stop()
+        return 1
+      }
     } else if (!(await answersAt(address))) {
       console.error(nothingAnswersMessage(address))
       return 1
@@ -304,6 +323,10 @@ export async function run(
 async function runGuarded(command, rest, addresses, { migrate, seed, runCommandLine }) {
   if (command === 'seed') {
     const seeding = await seed(rest)
+    if (seeding.status === STOPPED_EARLY_EXIT_CODE) {
+      console.error(stoppedEarlyMessage('seed'))
+      return 1
+    }
     if (!seedVerified(seeding)) {
       console.error(
         'SEED: FAILED. The seed did not confirm that it finished. Read the error above, fix it, then run `npm run seed` again: it creates only what is still missing.',
@@ -318,6 +341,10 @@ async function runGuarded(command, rest, addresses, { migrate, seed, runCommandL
     // STORAGE_URL_UNPOOLED), as the Vercel build does: a migration's long transaction does not belong
     // on the pooled connection. The runner gets exactly that one address (scripts/lib/migrationEnv.mjs).
     const migration = await migrate(migrationEnv(process.env, addresses.directUrl || addresses.pooledUrl))
+    if (migration.status === STOPPED_EARLY_EXIT_CODE) {
+      console.error(stoppedEarlyMessage('migrate'))
+      return 1
+    }
     if (!migrationVerified(migration)) {
       console.error(
         'MIGRATIONS: FAILED. The migration step did not confirm that every committed migration is in your database. Read the error above, fix it, then run `npm run migrate` again.',

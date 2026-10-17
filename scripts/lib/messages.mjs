@@ -25,6 +25,31 @@ export function couldNotStartMessage({ host, port }, reason) {
 }
 
 /**
+ * This project's laptop database answers at its address, but takes no connection or never answers a
+ * query (scripts/lib/laptopDatabase.mjs databaseProblem).
+ *
+ * @param {{ host: string, port: number }} address
+ * @param {string} reason
+ */
+export function notAcceptingMessage({ host, port }, reason) {
+  return `NOT RUNNING: your laptop's database at ${host}:${port} takes no connections (${reason}). If \`npm run dev\` runs in another terminal, stop it there with Ctrl+C and start it again. Then try again.`
+}
+
+/**
+ * A runner (scripts/migrate.mjs, scripts/seed.mjs) stopped without finishing and without an error of
+ * its own: Node ended it with exit code 13 ("unsettled top-level await"), because it was left waiting
+ * for something that could no longer come, most often its database connection.
+ */
+export const STOPPED_EARLY_EXIT_CODE = 13
+
+/** @param {'migrate' | 'seed'} command */
+export function stoppedEarlyMessage(command) {
+  return command === 'migrate'
+    ? 'MIGRATIONS: FAILED. The migration stopped halfway without an error of its own: it lost its connection to the database, or never got one. If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then run `npm run migrate` again: it only runs what is still missing.'
+    : 'SEED: FAILED. The seed stopped halfway without an error of its own: it lost its connection to the database, or never got one. If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then run `npm run seed` again: it only creates what is still missing.'
+}
+
+/**
  * Something answers at your laptop's database's address, but this project did not start it: most
  * likely another copy of the starter (scripts/lib/laptopDatabase.mjs, "ONLY ITS OWN").
  *
