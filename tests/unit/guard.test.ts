@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import net from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { check, run, runnerSpawnOptions } from '../../scripts/guard.mjs'
+import { answers, LOCAL_DATABASE_URL, localAddress } from '../../scripts/lib/localDatabase.mjs'
 import { MIGRATIONS_VERIFIED } from '../../scripts/lib/migrationResult.mjs'
 import { SEED_VERIFIED } from '../../scripts/lib/seedResult.mjs'
 
@@ -46,6 +48,10 @@ describe('guard check', () => {
 // `.env`/`.env.local` on their machine. Every test below stubs it out with a no-op, so the test
 // worker's real files (if any exist on whoever's machine runs the suite) are never touched.
 const noLoadEnv = () => {}
+// The 127.0.0.1 addresses below stand for your laptop's database; `up` says something answers there,
+// so these tests never open a real connection. The test at the end of 'guard run()' covers the
+// opposite: nothing answers.
+const up = async () => true
 
 const DATABASE_NAMES = ['DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'STORAGE_URL', 'STORAGE_URL_UNPOOLED'] as const
 
@@ -85,17 +91,17 @@ describe('guard run()', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const seed = vi.fn(seeded)
-      expect(await run(['seed'], { loadEnv: noLoadEnv, seed })).toBe(0)
+      expect(await run(['seed'], { loadEnv: noLoadEnv, answersAt: up, seed })).toBe(0)
       expect(seed).toHaveBeenCalledTimes(1)
       expect(error).not.toHaveBeenCalled()
 
       // Exit code 0 without the final line: the runner stopped early, so this is a failure.
-      expect(await run(['seed'], { loadEnv: noLoadEnv, seed: async () => ({ status: 0, stdout: 'SEED: created 20, kept 0\n' }) })).toBe(1)
+      expect(await run(['seed'], { loadEnv: noLoadEnv, answersAt: up, seed: async () => ({ status: 0, stdout: 'SEED: created 20, kept 0\n' }) })).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('SEED: FAILED.'))
       expect(error).toHaveBeenCalledWith(expect.stringContaining('npm run seed'))
 
       error.mockClear()
-      expect(await run(['seed'], { loadEnv: noLoadEnv, seed: async () => ({ status: 5, stdout: '' }) })).toBe(5)
+      expect(await run(['seed'], { loadEnv: noLoadEnv, answersAt: up, seed: async () => ({ status: 5, stdout: '' }) })).toBe(5)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('SEED: FAILED.'))
     } finally {
       error.mockRestore()
@@ -105,10 +111,10 @@ describe('guard run()', () => {
   it('npm run seed -- --again passes --again on to the seed runner', async () => {
     process.env.DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5999/postgres'
     const seed = vi.fn(seeded)
-    expect(await run(['seed', '--again'], { loadEnv: noLoadEnv, seed })).toBe(0)
+    expect(await run(['seed', '--again'], { loadEnv: noLoadEnv, answersAt: up, seed })).toBe(0)
     expect(seed).toHaveBeenCalledWith(['--again'])
     seed.mockClear()
-    expect(await run(['seed'], { loadEnv: noLoadEnv, seed })).toBe(0)
+    expect(await run(['seed'], { loadEnv: noLoadEnv, answersAt: up, seed })).toBe(0)
     expect(seed).toHaveBeenCalledWith([])
   })
 
@@ -117,9 +123,12 @@ describe('guard run()', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const seed = vi.fn(seeded)
     try {
-      const code = await run(['seed'], { loadEnv: noLoadEnv, readMarker: async () => 'ep-live-1', seed })
+      const code = await run(['seed'], { loadEnv: noLoadEnv, answersAt: up, readMarker: async () => 'ep-live-1', seed })
       expect(code).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('This is the live database'))
+      expect(error).toHaveBeenCalledWith(
+        "REFUSED: This is the live database (its database id is ep-live-1). Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example, which `npm run db` starts) — see docs/guides/local-setup.md.",
+      )
       // The old bypass ran the seed before ever checking: proof this version does not.
       expect(seed).not.toHaveBeenCalled()
     } finally {
@@ -131,7 +140,7 @@ describe('guard run()', () => {
     process.env.DATABASE_URL = 'postgres://u:p@ep-live-1.eu-central-1.aws.neon.tech/db'
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const code = await run(['migrate'], { loadEnv: noLoadEnv, readMarker: async () => 'ep-live-1' })
+      const code = await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, readMarker: async () => 'ep-live-1' })
       expect(code).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('REFUSED:'))
     } finally {
@@ -145,7 +154,7 @@ describe('guard run()', () => {
     try {
       for (const command of ['migrate', 'migrate:create', 'seed']) {
         error.mockClear()
-        const code = await run([command], { loadEnv: noLoadEnv })
+        const code = await run([command], { loadEnv: noLoadEnv, answersAt: up })
         expect(code).toBe(1)
         expect(error).toHaveBeenCalledWith(expect.stringContaining('REFUSED:'))
         expect(error).toHaveBeenCalledWith(expect.stringContaining('DATABASE_URL'))
@@ -154,6 +163,10 @@ describe('guard run()', () => {
         // (and for migrate:create, slightly odd-reading) "no database to migrate:create".
         expect(error).toHaveBeenCalledWith(expect.stringContaining(`\`npm run ${command}\``))
         expect(error).toHaveBeenCalledWith(expect.stringContaining('to work on'))
+        // Points at the laptop's database and the prefilled line, never at making a Neon account.
+        expect(error).toHaveBeenCalledWith(expect.stringContaining('remove the # in front of its DATABASE_URL line'))
+        expect(error).toHaveBeenCalledWith(expect.stringContaining('`npm run db`'))
+        expect(error).not.toHaveBeenCalledWith(expect.stringContaining('Neon'))
       }
     } finally {
       error.mockRestore()
@@ -181,7 +194,7 @@ describe('guard run()', () => {
   it('rejects an unknown command without ever calling loadEnv\'s real implementation', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const code = await run(['nonsense'], { loadEnv: noLoadEnv })
+      const code = await run(['nonsense'], { loadEnv: noLoadEnv, answersAt: up })
       expect(code).toBe(1)
     } finally {
       error.mockRestore()
@@ -197,7 +210,7 @@ describe('guard run()', () => {
     try {
       for (const command of ['migrate', 'seed', 'dev']) {
         error.mockClear()
-        const code = await run([command], { loadEnv: noLoadEnv, readMarker: async () => 'ep-live-1', migrate, seed })
+        const code = await run([command], { loadEnv: noLoadEnv, answersAt: up, readMarker: async () => 'ep-live-1', migrate, seed })
         expect(code, command).toBe(1)
         expect(error).toHaveBeenCalledWith(expect.stringContaining('This is the live database'))
       }
@@ -214,7 +227,7 @@ describe('guard run()', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       const readMarker = async (url: string) => (url.includes('ep-live-1') ? 'ep-live-1' : null)
-      const code = await run(['migrate'], { loadEnv: noLoadEnv, readMarker, migrate: async () => ({ status: 0, stdout: `${MIGRATIONS_VERIFIED}\n` }) })
+      const code = await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, readMarker, migrate: async () => ({ status: 0, stdout: `${MIGRATIONS_VERIFIED}\n` }) })
       expect(code).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('This is the live database (its database id is ep-live-1).'))
     } finally {
@@ -227,7 +240,7 @@ describe('guard run()', () => {
     process.env.STORAGE_URL = 'postgres://u:secret@ep-b-pooler.eu-central-1.aws.neon.tech/db'
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const code = await run(['dev'], { loadEnv: noLoadEnv, readMarker: async () => null })
+      const code = await run(['dev'], { loadEnv: noLoadEnv, answersAt: up, readMarker: async () => null })
       expect(code).toBe(1)
       expect(error).toHaveBeenCalledWith(
         'REFUSED: Conflicting DATABASE_URL and STORAGE_URL: they hold two different database addresses. In .env.local: delete one of the two lines (DATABASE_URL or STORAGE_URL) so only one database address is left, then try again.',
@@ -245,7 +258,7 @@ describe('guard run()', () => {
     delete process.env.DATABASE_URL
     process.env.STORAGE_URL = pooled
     process.env.STORAGE_URL_UNPOOLED = direct
-    expect(await run(['migrate'], { loadEnv: noLoadEnv, migrate })).toBe(0)
+    expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, migrate })).toBe(0)
     const variables = migrate.mock.calls[0][0]
     expect(variables.DATABASE_URL).toBe(direct)
     expect(variables).not.toHaveProperty('STORAGE_URL')
@@ -253,7 +266,7 @@ describe('guard run()', () => {
 
     // Only the pooled address: the migration uses that one.
     delete process.env.STORAGE_URL_UNPOOLED
-    expect(await run(['migrate'], { loadEnv: noLoadEnv, migrate })).toBe(0)
+    expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, migrate })).toBe(0)
     expect(migrate.mock.calls[1][0].DATABASE_URL).toBe(pooled)
   })
 
@@ -262,14 +275,14 @@ describe('guard run()', () => {
     process.env.STORAGE_URL = 'postgres://postgres:postgres@127.0.0.1:5999/postgres' // not Neon: allowed
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await run(['migrate'], { loadEnv: noLoadEnv, migrate: async () => ({ status: 0, stdout: `Migrating: a\n${MIGRATIONS_VERIFIED}\n` }) })).toBe(0)
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, migrate: async () => ({ status: 0, stdout: `Migrating: a\n${MIGRATIONS_VERIFIED}\n` }) })).toBe(0)
       expect(error).not.toHaveBeenCalled()
 
-      expect(await run(['migrate'], { loadEnv: noLoadEnv, migrate: async () => ({ status: 0, stdout: '' }) })).toBe(1)
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, migrate: async () => ({ status: 0, stdout: '' }) })).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('MIGRATIONS: FAILED.'))
 
       error.mockClear()
-      expect(await run(['migrate'], { loadEnv: noLoadEnv, migrate: async () => ({ status: 3, stdout: '' }) })).toBe(3)
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up, migrate: async () => ({ status: 3, stdout: '' }) })).toBe(3)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('npm run migrate'))
     } finally {
       error.mockRestore()
@@ -285,7 +298,7 @@ describe('guard run()', () => {
     try {
       for (const command of ['migrate', 'migrate:create', 'seed']) {
         error.mockClear()
-        expect(await run([command], { loadEnv: noLoadEnv, migrate, seed }), command).toBe(1)
+        expect(await run([command], { loadEnv: noLoadEnv, answersAt: up, migrate, seed }), command).toBe(1)
         expect(error).toHaveBeenCalledWith(expect.stringContaining('REFUSED: no DATABASE_URL (or STORAGE_URL) is set'))
         expect(error).toHaveBeenCalledWith(expect.stringContaining(`\`npm run ${command}\``))
       }
@@ -302,13 +315,72 @@ describe('guard run()', () => {
     process.env.STORAGE_URL_UNPOOLED = 'postgres://u:secret@ep-b.eu-central-1.aws.neon.tech/db'
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await run(['migrate'], { loadEnv: noLoadEnv })).toBe(1)
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: up })).toBe(1)
       expect(error).toHaveBeenCalledWith(
         expect.stringContaining('delete one of the two lines (DATABASE_URL_UNPOOLED or STORAGE_URL_UNPOOLED)'),
       )
     } finally {
       error.mockRestore()
     }
+  })
+
+  it('stops with one plain message when nothing answers at a database address on this computer (npm run db not started)', async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const migrate = vi.fn(async () => ({ status: 0, stdout: `${MIGRATIONS_VERIFIED}\n` }))
+    const seed = vi.fn(seeded)
+    const answersAt = vi.fn(async () => false)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      for (const command of ['migrate', 'migrate:create', 'seed', 'dev']) {
+        error.mockClear()
+        expect(await run([command], { loadEnv: noLoadEnv, answersAt, migrate, seed }), command).toBe(1)
+        expect(error).toHaveBeenCalledTimes(1)
+        expect(error).toHaveBeenCalledWith(
+          "NOT RUNNING: nothing answers at 127.0.0.1:54329, the database address in .env.local. Your laptop's database is not running: open a second terminal in this project's folder, run `npm run db` there and leave it open. Then try again.",
+        )
+      }
+      expect(answersAt).toHaveBeenCalledWith({ host: '127.0.0.1', port: 54329 })
+      expect(migrate).not.toHaveBeenCalled()
+      expect(seed).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('never probes a Neon address, and still refuses the live one before anything else', async () => {
+    process.env.DATABASE_URL = 'postgres://u:p@ep-live-1-pooler.eu-central-1.aws.neon.tech/db'
+    const answersAt = vi.fn(async () => false)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt, readMarker: async () => 'ep-live-1' })).toBe(1)
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('REFUSED: This is the live database'))
+      expect(answersAt).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+})
+
+describe("your laptop's database (scripts/lib/localDatabase.mjs)", () => {
+  it('is the address .env.example holds, on its own port', () => {
+    expect(LOCAL_DATABASE_URL).toBe('postgres://postgres:postgres@127.0.0.1:54329/postgres')
+  })
+
+  it('recognises an address on this computer, and nothing else', () => {
+    expect(localAddress(LOCAL_DATABASE_URL)).toEqual({ host: '127.0.0.1', port: 54329 })
+    expect(localAddress('postgres://postgres:postgres@localhost/postgres')).toEqual({ host: 'localhost', port: 5432 })
+    expect(localAddress('postgres://u:p@ep-a-pooler.eu-central-1.aws.neon.tech/db')).toBeNull()
+    expect(localAddress('not an address')).toBeNull()
+    expect(localAddress(undefined)).toBeNull()
+  })
+
+  it('answers() is true while something listens on the port, and false once nothing does', async () => {
+    const server = net.createServer((socket) => socket.destroy())
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const { port } = server.address() as net.AddressInfo
+    expect(await answers({ host: '127.0.0.1', port })).toBe(true)
+    await new Promise((resolve) => server.close(resolve))
+    expect(await answers({ host: '127.0.0.1', port })).toBe(false)
   })
 })
 

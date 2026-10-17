@@ -45,6 +45,9 @@ next-env.d.ts
 
 /media
 
+# your laptop's database (npm run db keeps its data here); never committed
+/.data/
+
 # notes the builders of this starter keep while working (plans, task write-ups, review reports);
 # not part of the site
 .superpowers/

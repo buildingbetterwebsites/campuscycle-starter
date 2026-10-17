@@ -7,3 +7,13 @@ export function reachMessage(reason) {
 
 /** The migration and seed runners were started without any database address. */
 export const NO_DATABASE_ADDRESS = 'No database address: set DATABASE_URL (or STORAGE_URL) to your database, then try again.'
+
+/**
+ * `npm run dev`/`migrate`/`seed` with a database address on this computer, where nothing answers: the
+ * student has not started their laptop's database (`npm run db`, scripts/db.mjs).
+ *
+ * @param {{ host: string, port: number }} address
+ */
+export function notRunningMessage({ host, port }) {
+  return `NOT RUNNING: nothing answers at ${host}:${port}, the database address in .env.local. Your laptop's database is not running: open a second terminal in this project's folder, run \`npm run db\` there and leave it open. Then try again.`
+}
