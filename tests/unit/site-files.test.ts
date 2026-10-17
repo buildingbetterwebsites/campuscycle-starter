@@ -103,6 +103,12 @@ describe('the markers a course exercise points at', () => {
   it('BookingForm.tsx keeps the W6 repair choice commented out, with the name only and the exact price comment on the label line', () => {
     const source = read('src/components/site/BookingForm.tsx')
     const lines = source.split(/\r?\n/)
+    // After W6 (a learner's copy): switched on as the README says, so the form shows the choice.
+    if (!lines.some((line) => line.startsWith('// function RepairChoice('))) {
+      expect(source).toMatch(/^function RepairChoice\(/m)
+      expect(lines.some((line) => line.trim() === '<RepairChoice repairs={props.repairs} />')).toBe(true)
+      return
+    }
     // The label line, exactly: commented out, the repair's name only, and the full comment.
     const labelLine =
       "//         const label = repair.name // To show the price in the choice too, add the record's price here (formatPrice(repair.price)): it reads the stored price, nothing is copied. Also import formatPrice from '@/lib/format', as the clinic page does."
@@ -121,6 +127,12 @@ describe('the markers a course exercise points at', () => {
 
   it('createBooking.ts keeps the W6 repairs line commented out, next to the whitelist', () => {
     const source = read('src/tasks/book-slot/createBooking.ts')
+    // After W6 (a learner's copy): both lines switched on, under the same W6 comment.
+    if (/^\s*const repairs = formData\.getAll\('repairs'\)/m.test(source)) {
+      expect(source).toMatch(/^\s*\/\/ W6: switch on the repair choice\./m)
+      expect(source).toMatch(/^\s*repairs,\s*$/m)
+      return
+    }
     expect(source).toMatch(/^\s*\/\/\s*const repairs = formData\.getAll\('repairs'\)/m)
     expect(source).not.toMatch(/^\s*const repairs = formData\.getAll/m)
     // ...and `repairs,` in payload.create, commented out too, under the W6 comment that names both.

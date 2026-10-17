@@ -1,6 +1,16 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import type { PostgresAdapter } from '@payloadcms/db-postgres'
+import type { Payload } from 'payload'
+import { hasRepairsRelation, hasWhatToBringList, type FieldShape } from '../../src/lib/courseCheck'
 import { getTestPayload, resetCollections } from '../setup/payload'
+
+const fieldsOf = (p: Payload, slug: 'clinics' | 'bookings' | 'repairs') => p.collections[slug].config.flattenedFields as readonly FieldShape[]
+
+/** Which of the learners' own additions (W5's list, W6's relationship and its reverse side) the app has. */
+function learnerAdditions(p: Payload) {
+  const has = (slug: 'clinics' | 'bookings' | 'repairs', name: string) => fieldsOf(p, slug).some(f => f.name === name)
+  return { whatToBring: has('clinics', 'whatToBring'), repairs: has('bookings', 'repairs'), reverse: has('repairs', 'bookings') }
+}
 
 const collections = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages']
 export const workshopData = { title: 'Test workshop', slug: 'test-workshop', level: 'beginner' as const, day: 'Tuesday' as const, startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.' }
@@ -35,11 +45,22 @@ describe('the content model', () => {
     const found = await p.findByID({ collection: 'timeSlots', id: slot.id, depth: 1, user: editor })
     expect(found.bookings?.docs?.map(b => typeof b === 'object' ? b.id : b)).toEqual([booking.id])
     expect((await p.findByID({ collection: 'clinics', id: clinic.id })).timeSlots?.docs).toHaveLength(1)
-    // The learners' own additions (W5, W6) are not in the starter. bookings.member is: it belongs to
-    // the optional members' area, which ships switched off (tests/integration/members.test.ts).
-    for (const [collection, field] of [['clinics', 'whatToBring'], ['bookings', 'repairs'], ['repairs', 'bookings']] as const) {
-      expect(p.collections[collection].config.flattenedFields.some(f => f.name === field)).toBe(false)
+    // The learners' own additions (W5, W6) are not in the starter (the template-only test below), but
+    // they are in every learner's copy after W5 and W6: then they must have the agreed shapes.
+    // bookings.member is the starter's own: it belongs to the optional members' area, which ships
+    // switched off (tests/integration/members.test.ts).
+    const additions = learnerAdditions(p)
+    if (additions.whatToBring) expect(hasWhatToBringList(fieldsOf(p, 'clinics')), 'clinics.whatToBring (W5)').toBe(true)
+    if (additions.repairs) expect(hasRepairsRelation(fieldsOf(p, 'bookings')), 'bookings.repairs (W6)').toBe(true)
+    if (additions.reverse) {
+      expect(fieldsOf(p, 'repairs').find(f => f.name === 'bookings'), 'repairs.bookings (W6)').toMatchObject({ type: 'join', collection: 'bookings', on: 'repairs' })
     }
+  })
+
+  // The template as published: none of the learners' additions yet. Only in the maintainers' publish
+  // steps (STARTER_TEMPLATE=1), because every learner's copy has them after W5 and W6.
+  it.runIf(process.env.STARTER_TEMPLATE === '1')("in the template, none of the learners' additions (W5, W6) is there yet", async () => {
+    expect(learnerAdditions(await getTestPayload())).toEqual({ whatToBring: false, repairs: false, reverse: false })
   })
 
   it('rejects invalid references, duplicate slugs and invalid numeric values', async () => {

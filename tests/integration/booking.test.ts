@@ -180,14 +180,21 @@ describe('example task 2: book a clinic slot', () => {
       expect((await p.count({ collection: 'throttle' })).totalDocs).toBe(1)
     })
 
-    it('saves only the whitelisted fields: member=1, repairs=… and any other extra field are ignored', async () => {
+    it('saves only the whitelisted fields: member=1, repairs=… (before W6) and any other extra field are ignored', async () => {
       const target = await slot(inDays(6))
-      const result = await book({ timeSlot: String(target.id), member: '1', repairs: ['1', '2'], createdAt: '2000-01-01T00:00:00Z', id: '999' })
+      // After W6 the learner has switched the repairs on (bookings.repairs and the two createBooking
+      // lines): then the ticked repairs are saved, so they must be real ones.
+      const w6 = p.collections.bookings.config.flattenedFields.some((field) => field.name === 'repairs')
+      const repairIds = w6
+        ? [(await p.create({ collection: 'repairs', data: { name: 'Check', price: 10 } })).id, (await p.create({ collection: 'repairs', data: { name: 'Full service', price: 45 } })).id]
+        : [1, 2]
+      const result = await book({ timeSlot: String(target.id), member: '1', repairs: repairIds.map(String), createdAt: '2000-01-01T00:00:00Z', id: '999' })
       expect(result.ok).toBe(true)
       const [saved] = await rows()
       // member exists for the optional members' area, but the form can never fill it in.
       expect(saved.member ?? null).toBeNull()
-      expect(saved).not.toHaveProperty('repairs')
+      if (w6) expect((saved as unknown as { repairs: unknown }).repairs).toEqual(repairIds)
+      else expect(saved).not.toHaveProperty('repairs')
       expect(saved.id).not.toBe(999)
       expect(saved.createdAt).not.toMatch(/^2000/)
     })

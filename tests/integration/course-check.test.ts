@@ -10,7 +10,7 @@ import { hasRepairsRelation, hasWhatToBringList, type FieldShape } from '../../s
 import { courseCheckResponse } from '../../src/lib/courseCheckResponse'
 import { allowRequest } from '../../src/tasks/book-slot/guards'
 import { afterW6Config, collections as fixtureCollections, type Shape } from '../fixtures/config-after-w6'
-import { getTestPayload, resetCollections } from '../setup/payload'
+import { getTestPayload } from '../setup/payload'
 
 const clean = ['bookings', 'timeSlots', 'clinics', 'repairs', 'throttle']
 const DAY = 24 * 60 * 60 * 1000
@@ -67,43 +67,61 @@ const ok = (clinic: boolean, whatToBring: string[] | null, booking: boolean) => 
 })
 
 describe('the course check, before W5 and W6 (the app as it ships)', () => {
+  // The app as the starter ships it, without W5's and W6's fields (tests/fixtures/config-after-w6.ts,
+  // 'shipped'), in a schema of its own: a learner's copy has those fields after W5 and W6, and these
+  // tests keep testing the shipped app all the same. The same function the route runs, on that config;
+  // the route file itself is tested below (HEAD, and the other methods).
+  const schema = 'course_check_shipped'
+  let base: Payload
   let p: Payload
+  const answer = (incoming: Request) => courseCheckResponse(incoming, { payload: p })
 
   beforeAll(async () => {
-    p = await getTestPayload()
+    base = await getTestPayload()
+    p = await openFixture(base, 'shipped', schema)
+  }, 120_000)
+  beforeEach(async () => {
+    for (const slug of clean) await p.db.deleteMany({ collection: slug as never, where: { id: { exists: true } } })
   })
-  beforeEach(() => resetCollections(clean))
   afterEach(() => vi.restoreAllMocks())
-  afterAll(() => resetCollections(clean))
+  afterAll(() => closeFixture(base, p, schema))
+
+  it('is the app without the W5 and W6 fields', async () => {
+    const appSlugs = base.config.collections.map((collection) => collection.slug).filter((slug) => !slug.startsWith('payload-'))
+    expect((await fixtureCollections('shipped')).map((collection) => collection.slug)).toEqual(appSlugs)
+    expect(fieldsOf(p, 'clinics').some((field) => field.name === 'whatToBring')).toBe(false)
+    expect(fieldsOf(p, 'bookings').some((field) => field.name === 'repairs')).toBe(false)
+    expect((p.collections.repairs.config.flattenedFields as readonly FieldShape[]).some((field) => field.name === 'bookings')).toBe(false)
+  })
 
   it('a clinic whose summary holds the code: clinic yes, no list (before W5), no booking (before W6)', async () => {
     await addClinic(p, 'Saturday repair clinic. Code BW-7F3K.')
-    expect(await seen(await route.GET(request('?code=BW-7F3K')))).toEqual(ok(true, null, false))
-    expect(await seen(await route.GET(request('?code=%20bw-7f3k%20')))).toEqual(ok(true, null, false))
+    expect(await seen(await answer(request('?code=BW-7F3K')))).toEqual(ok(true, null, false))
+    expect(await seen(await answer(request('?code=%20bw-7f3k%20')))).toEqual(ok(true, null, false))
   })
 
   it('the 4-to-8 form of code works the same way', async () => {
     await addClinic(p, 'Team code k7q2, Saturday.')
-    expect(await seen(await route.GET(request('?code=K7Q2')))).toEqual(ok(true, null, false))
+    expect(await seen(await answer(request('?code=K7Q2')))).toEqual(ok(true, null, false))
   })
 
   it('no clinic with the code: everything no', async () => {
     await addClinic(p, 'Saturday repair clinic. Code BW-7F3K.')
-    expect(await seen(await route.GET(request('?code=BW-0000')))).toEqual(ok(false, null, false))
+    expect(await seen(await answer(request('?code=BW-0000')))).toEqual(ok(false, null, false))
   })
 
   it('the code inside a longer word does not count, though the database finds it', async () => {
     await addClinic(p, 'Codes BW-7F3KX and XBW-7F3K and BW-7F3K-2.')
-    expect(await seen(await route.GET(request('?code=BW-7F3K')))).toEqual(ok(false, null, false))
+    expect(await seen(await answer(request('?code=BW-7F3K')))).toEqual(ok(false, null, false))
   })
 
   it('without a code it answers for the whole site: no clinic yet, then a clinic', async () => {
     for (const query of ['', '?code=', '?code=%20%20']) {
-      expect(await seen(await route.GET(request(query))), query).toEqual(ok(false, null, false))
+      expect(await seen(await answer(request(query))), query).toEqual(ok(false, null, false))
     }
     await addClinic(p, 'Saturday repair clinic.')
     for (const query of ['', '?code=', '?code=%20%20']) {
-      expect(await seen(await route.GET(request(query))), query).toEqual(ok(true, null, false))
+      expect(await seen(await answer(request(query))), query).toEqual(ok(true, null, false))
     }
   })
 
@@ -111,7 +129,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     // Neither the clinics and bookings (find) nor the rate limit (count, create) are read.
     const reads = [vi.spyOn(p, 'find'), vi.spyOn(p, 'count'), vi.spyOn(p, 'create')]
     for (const bad of ['%3Cb%3EK7Q2%3C%2Fb%3E', 'K7', 'K7Q2K7Q2K', 'K7%20Q2', 'x'.repeat(40), 'BW-7F3', 'BW_7F3K']) {
-      expect(await seen(await route.GET(request(`?code=${bad}`))), bad).toEqual({ status: 400, type: 'application/json', cache: 'no-store', body: INVALID })
+      expect(await seen(await answer(request(`?code=${bad}`))), bad).toEqual({ status: 400, type: 'application/json', cache: 'no-store', body: INVALID })
     }
     for (const read of reads) expect(read).not.toHaveBeenCalled()
   })
@@ -121,6 +139,8 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     for (const query of ['?code=BW-7F3K', '', '?code=K7']) {
       const get = await route.GET(request(query))
       const head = await route.HEAD(request(query, freshAddress(), 'HEAD'))
+      // The route answers from the app's own database, with the three agreed keys.
+      if (get.status === 200) expect(Object.keys(await get.clone().json()), query).toEqual(['clinic', 'whatToBring', 'booking'])
       expect(head.status, query).toBe(get.status)
       expect([...head.headers], query).toEqual([...get.headers])
       expect(await head.text(), query).toBe('')
@@ -146,14 +166,14 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
 
   it('the 31st check in a minute from one address answers 429 with Retry-After; others and the next minute are fine', async () => {
     const ip = '203.0.113.50'
-    for (let i = 1; i <= 30; i++) expect((await route.GET(request('?code=BW-7F3K', ip))).status, `check ${i}`).toBe(200)
-    const limited = await route.GET(request('?code=BW-7F3K', ip))
+    for (let i = 1; i <= 30; i++) expect((await answer(request('?code=BW-7F3K', ip))).status, `check ${i}`).toBe(200)
+    const limited = await answer(request('?code=BW-7F3K', ip))
     expect(limited.headers.get('retry-after')).toBe('60')
     expect(await seen(limited)).toEqual({ status: 429, type: 'application/json', cache: 'no-store', body: LIMITED })
     // HEAD counts too, and says the same.
-    expect((await route.HEAD(request('', ip, 'HEAD'))).status).toBe(429)
+    expect((await answer(request('', ip, 'HEAD'))).status).toBe(429)
     // Another address is not limited.
-    expect((await route.GET(request('?code=BW-7F3K'))).status).toBe(200)
+    expect((await answer(request('?code=BW-7F3K'))).status).toBe(200)
     // A minute later the same address is fine again.
     const later = new Date(Date.now() + 61 * 1000)
     expect((await courseCheckResponse(request('?code=BW-7F3K', ip), { payload: p, now: later })).status).toBe(200)
@@ -165,13 +185,13 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
     for (let i = 0; i < 5; i++) expect(await allowRequest(ip, 5, 60, { payload: p, now: tenMinutesAgo })).toBe(true)
     // ...a course check from the same address now...
-    expect((await route.GET(request('?code=BW-7F3K', ip))).status).toBe(200)
+    expect((await answer(request('?code=BW-7F3K', ip))).status).toBe(200)
     // ...leaves that limit in place: the check's one-minute window does not forget them.
     expect(await allowRequest(ip, 5, 60, { payload: p })).toBe(false)
 
     // And 30 checks from a new address leave its booking budget whole.
     const other = '203.0.113.61'
-    for (let i = 0; i < 30; i++) expect((await route.GET(request('', other))).status).toBe(200)
+    for (let i = 0; i < 30; i++) expect((await answer(request('', other))).status).toBe(200)
     for (let i = 0; i < 5; i++) expect(await allowRequest(other, 5, 60, { payload: p })).toBe(true)
   })
 
@@ -181,23 +201,23 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     const problem = new Error('connect ECONNREFUSED 10.0.0.1:5432 (secret detail)')
 
     vi.spyOn(p, 'find').mockRejectedValueOnce(problem)
-    expect(await seen(await route.GET(request('?code=BW-7F3K')))).toEqual({ status: 503, type: 'application/json', cache: 'no-store', body: UNAVAILABLE })
+    expect(await seen(await answer(request('?code=BW-7F3K')))).toEqual({ status: 503, type: 'application/json', cache: 'no-store', body: UNAVAILABLE })
     expect(log).toHaveBeenCalledWith('The course check could not read the database:', problem)
 
     // The rate limit reads the database first: when that fails, the same answer.
     vi.spyOn(p, 'count').mockRejectedValueOnce(problem)
-    expect(await seen(await route.GET(request('')))).toEqual({ status: 503, type: 'application/json', cache: 'no-store', body: UNAVAILABLE })
+    expect(await seen(await answer(request('')))).toEqual({ status: 503, type: 'application/json', cache: 'no-store', body: UNAVAILABLE })
     expect(log).toHaveBeenCalledTimes(2)
 
     // The next request reads the database again.
-    expect(await seen(await route.GET(request('?code=BW-7F3K')))).toEqual(ok(true, null, false))
+    expect(await seen(await answer(request('?code=BW-7F3K')))).toEqual(ok(true, null, false))
   })
 
   it('never answers with a name, an e-mail address, a note or an id', async () => {
     const clinic = await addClinic(p, 'Code BW-7F3K.')
     await addBooking(p, clinic.id, 'Mina Peeters BW-7F3K')
     for (const query of ['?code=BW-7F3K', '']) {
-      const body = await (await route.GET(request(query))).text()
+      const body = await (await answer(request(query))).text()
       expect(Object.keys(JSON.parse(body)), query).toEqual(['clinic', 'whatToBring', 'booking'])
       expect(body, query).toBe(JSON.stringify({ clinic: true, whatToBring: null, booking: false }))
     }
@@ -257,8 +277,10 @@ describe('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)',
     expect((await fixtureCollections('agreed')).map((collection) => collection.slug)).toEqual(appSlugs)
     expect(hasWhatToBringList(fieldsOf(p, 'clinics'))).toBe(true)
     expect(hasRepairsRelation(fieldsOf(p, 'bookings'))).toBe(true)
-    expect(hasWhatToBringList(fieldsOf(base, 'clinics'))).toBe(false)
-    expect(hasRepairsRelation(fieldsOf(base, 'bookings'))).toBe(false)
+    // Each field once, also when the app has it itself (a learner's copy after W5 and W6).
+    for (const [slug, name] of [['clinics', 'whatToBring'], ['bookings', 'repairs']] as const) {
+      expect(fieldsOf(p, slug).filter((field) => field.name === name), `${slug}.${name}`).toHaveLength(1)
+    }
   })
 
   it("answers the clinic's list and yes for a booking with the code and two repairs", async () => {
