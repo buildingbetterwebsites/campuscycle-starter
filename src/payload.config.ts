@@ -35,7 +35,7 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const databaseUrl = databaseEnvironment(process.env).pooledUrl
-// Your laptop's database (`npm run db`, PGlite) runs without database transactions; the live and
+// Your laptop's database (PGlite, scripts/lib/laptopDatabase.mjs) runs without database transactions; the live and
 // preview databases (Neon) keep them. WHY: PGlite answers one connection at a time, and while one
 // connection has a transaction open, every other connection waits. Every save from /admin checks the
 // record's lock over a second connection, outside its own transaction, so the two waited for each

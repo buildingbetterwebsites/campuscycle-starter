@@ -264,7 +264,7 @@ slot's places as they are now; the full one says **Full**.
 every slot. You meet it when you test your own booking form many times in a row.
 
 **What to do:** wait an hour, then try again. On your own computer you can also empty the
-`throttle` table of your laptop's database (never the live one): with `npm run db` running, run
+`throttle` table of your laptop's database (never the live one): while `npm run dev` runs, run
 `delete from throttle;` in any Postgres tool connected to the `DATABASE_URL` in your `.env.local`.
 Its rows only hold hashed (unreadable) device addresses.
 
@@ -419,7 +419,7 @@ your live site.
 
 ## REFUSED: no DATABASE_URL (or STORAGE_URL) is set
 
-> REFUSED: no DATABASE_URL (or STORAGE_URL) is set, so there is no database for `npm run migrate` to work on. Copy .env.example to .env.local if you have not yet, then remove the # in front of its DATABASE_URL line: that is your laptop's database, which `npm run db` starts — see docs/guides/local-setup.md.
+> REFUSED: no DATABASE_URL (or STORAGE_URL) is set, so there is no database for `npm run migrate` to work on. Copy .env.example to .env.local if you have not yet, then remove the # in front of its DATABASE_URL line: that is your laptop's database, which starts by itself — see docs/guides/local-setup.md.
 
 (The message names the command you ran: `migrate`, `migrate:create` or `seed`.)
 
@@ -428,37 +428,54 @@ your live site.
 **What to do:** open `.env.local` and find the line
 `# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`. Remove the `#` at its start
 and save. No `.env.local` yet? Copy `.env.example` to `.env.local` first
-([local set-up guide](local-setup.md#fill-in-envlocal)). Then start your laptop's database with
-`npm run db` in a second terminal, if it is not running yet, and run your command again.
+([local set-up guide](local-setup.md#fill-in-envlocal)). Then run your command again: it starts your
+laptop's database by itself.
 
 <a id="not-running"></a>
 
+## NOT RUNNING: your laptop's database could not start
+
+> NOT RUNNING: your laptop's database could not start at 127.0.0.1:54329: (the reason). Fix that, then try again.
+
+**What it means:** `npm run dev`, `npm run migrate`, `npm run migrate:create` or `npm run seed` found
+your laptop's database not running, tried to start it, and could not. The message ends with the
+reason.
+
+**What to do:** read the reason.
+
+- It names the file `.data/db.lock`: another terminal is starting or running this project's
+  database, but it does not answer. Stop the other terminals that run `npm run dev` or `npm run db`
+  for this project, then try again. No other terminal runs it? Then delete the file `.data/db.lock`
+  and try again.
+- Something else: close the terminals that run this project and try again once. Still the same?
+  Start afresh with an empty database: delete the folder `.data/db`, then run `npm run migrate` and
+  `npm run seed` again. Only your local test data is lost; your live site is not touched.
+
 ## NOT RUNNING: nothing answers at …
 
-> NOT RUNNING: nothing answers at 127.0.0.1:54329, the database address in .env.local. Your laptop's database is not running: open a second terminal in this project's folder, run `npm run db` there and leave it open. Then try again.
+> NOT RUNNING: nothing answers at 127.0.0.1:5432, the database address in .env.local. Start that database, or use your laptop's own database instead (the DATABASE_URL line from .env.example). Then try again.
 
-**What it means:** `.env.local` points at your laptop's database, but it is not running. It only runs
-while `npm run db` runs in a terminal.
+**What it means:** the `DATABASE_URL` in your `.env.local` is a database on your own computer, but
+not your laptop's database from `.env.example` (another port), and nothing answers there. The starter
+only starts its own database by itself.
 
-**What to do:** open a second terminal (in VS Code: **Terminal** → **New Terminal**), run
-`npm run db` there and leave it open. When it says `Your laptop's database is running at …`, run
-your command again in the first terminal. Your data is still there: it is kept in the folder
-`.data/db`.
+**What to do:** put back the line from `.env.example`:
+`DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`. Or start the other database
+you meant to use.
 
 <a id="refused-live-database"></a>
 
 ## REFUSED: This is the live database
 
-> REFUSED: This is the live database (its database id is ep-…). Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example, which `npm run db` starts) — see docs/guides/local-setup.md.
+> REFUSED: This is the live database (its database id is ep-…). Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example) — see docs/guides/local-setup.md.
 
 **What it means:** the address in your `.env.local` is your **live** site's database. The starter
 recognises it and refuses: anything you tried out on your own computer would change your real site.
 
 **What to do:** delete that address from `.env.local`. Use your laptop's own database instead: the
-line `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`, as in `.env.example`, with
-`npm run db` running in a second terminal
-([local set-up guide](local-setup.md#start-your-laptops-database)). Never copy the address Vercel
-added for your live site.
+line `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`, as in `.env.example`
+([local set-up guide](local-setup.md#your-laptops-database)). Never copy the address Vercel added for
+your live site.
 
 ## REFUSED: Conflicting DATABASE_URL and STORAGE_URL
 

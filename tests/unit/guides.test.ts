@@ -178,6 +178,7 @@ const MESSAGES: Message[] = [
   { file: 'scripts/guard.mjs', code: 'REFUSED: ${decision.reason}', heading: 'REFUSED: This is the live database' },
   { file: 'scripts/guard.mjs', code: 'REFUSED: ${conflictMessage(error)}', heading: 'REFUSED: Conflicting' },
   { file: 'scripts/lib/messages.mjs', code: 'NOT RUNNING: nothing answers at', heading: 'NOT RUNNING: nothing answers at' },
+  { file: 'scripts/lib/messages.mjs', code: "NOT RUNNING: your laptop's database could not start", heading: "NOT RUNNING: your laptop's database could not start" },
   { file: 'scripts/build.mjs', code: 'MIGRATIONS: FAILED ON THE PREVIEW DATABASE' },
   {
     file: 'scripts/build.mjs',
