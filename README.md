@@ -32,11 +32,13 @@ Five steps, all in your browser. [The first-hour guide](docs/guides/first-hour.m
 with what you should see after each one.
 
 1. **Use this template** on GitHub: a repository of your own, named `campuscycle-<your name>`.
-2. **Import it into Vercel** as a project with the same name, with three settings: `PAYLOAD_SECRET`,
-   `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD`. The first build stops with "NOT CONFIGURED YET":
-   that is expected.
-3. **Connect Neon and Blob from inside Vercel** (Storage → Create Storage): Neon in Frankfurt,
-   connected to Production only; Blob Public, with its read-write token.
+2. **Import it into Vercel** as a project with the same name, and type three settings yourself:
+   `PAYLOAD_SECRET`, `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD` (save the last two in your password
+   manager). The first build stops with "NOT CONFIGURED YET": that is expected.
+3. **Connect Neon and Blob from inside Vercel** (Storage → Create Storage): Neon in Frankfurt, with
+   Auth off, connected to Production and Preview with "Create database branch for deployment: Preview"
+   ticked (each preview then gets its own copy of the database); Blob Public, in Frankfurt, with its
+   read-write token, connected to Production only.
 4. **Redeploy** (Deployments → **…** → **Redeploy**, never "Promote to Production"). The build log
    shows `MIGRATIONS: verified committed migrations` and `SEED: verified`.
 5. **Log in to `/admin`** with your `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD`.

@@ -188,7 +188,7 @@ export async function build({
           // A broken preview migration must not block the pull request's build - only warn, so the
           // author can still see the rest of the preview and fix the branch from Neon.
           console.error(
-            'MIGRATIONS: FAILED ON THE PREVIEW DATABASE (build continues). In Neon: Branches → preview → Reset from parent, then redeploy the preview. See docs/guides/troubleshooting.md#preview-migration-failed.',
+            'MIGRATIONS: FAILED ON THE PREVIEW DATABASE (build continues). In Neon: Branches → preview/<your branch> → Reset from parent; then in Vercel, redeploy this preview. See docs/guides/troubleshooting.md#preview-migration-failed.',
           )
         } else {
           // Production: a failed migration must stop the build - building an app against a database

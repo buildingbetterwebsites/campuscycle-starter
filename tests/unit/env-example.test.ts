@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { LOCAL_DATABASE_URL } from '../../scripts/lib/localDatabase.mjs'
 
-// Vercel's import screen turns every active line of .env.example into a row. In the account test, the
-// empty DATABASE_URL and BLOB_READ_WRITE_TOKEN rows had to be removed by hand, or they clashed with the
-// settings that connecting Neon and Blob add. So only the three names a student types are active.
+// Vercel's import screen does not read .env.example: a student types the rows (or pastes the file's
+// lines, which turns every active line into a row). In the account test, pasted empty DATABASE_URL and
+// BLOB_READ_WRITE_TOKEN rows had to be removed by hand, or they clashed with the settings that connecting
+// Neon and Blob add. So only the three names a student types are active.
 const lines = readFileSync(new URL('../../.env.example', import.meta.url), 'utf8').split(/\r?\n/)
 const active = lines.filter((line) => /^[A-Z_]+=/.test(line)).map((line) => line.split('=')[0])
 
