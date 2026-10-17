@@ -73,7 +73,8 @@ Started your laptop's database (data in .data/db); it stops when this command st
 ```
 
 When `npm run dev` already runs in another terminal, the other commands use its database. That is
-how you run `npm run migrate:create` and `npm run migrate` next to your running site.
+how you run `npm run migrate:create` and `npm run migrate` next to your running site. With two
+terminals, start `npm run dev` first: the command that started the database also stops it.
 
 Your data is kept in the folder `.data/db` in the project (Git leaves that folder out), so it is all
 still there the next time. To start afresh with an empty database: stop `npm run dev`, delete the
