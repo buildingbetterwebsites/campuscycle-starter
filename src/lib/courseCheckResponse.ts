@@ -2,16 +2,31 @@
 // checkers in docs/COURSE-CHECK-CONTRACT.md. The rules without the database are in courseCheck.ts.
 import { getPayload, type Payload, type Where } from 'payload'
 import config from '@/payload.config'
+import { courseCheckConfig } from '@/course-check.config'
 import { allowRequest, clientKey } from '@/tasks/book-slot/guards'
 import {
   answer,
   containsToken,
   countRepairs,
   hasRepairsRelation,
+  isOwnCollection,
+  manyToManyLinks,
+  newestRecord,
   readCode,
+  readInclude,
   readWhatToBring,
+  teamSection,
+  TEMPLATE_COLLECTIONS,
+  usableNameField,
+  type CollectionShape,
   type CourseCheckAnswer,
+  type CourseCheckConfig,
+  type CourseCheckTeamAnswer,
   type FieldShape,
+  type NewestRecord,
+  type TeamCollection,
+  type TeamSection,
+  type Transactional,
 } from './courseCheck'
 
 // 30 checks a minute from one address. The key's prefix keeps this budget apart from the booking
@@ -36,13 +51,19 @@ export function methodNotAllowed(): Response {
 
 /**
  * The route's answer to one GET request. `options` is for the tests: they pass their own Payload (the
- * after-W6 fixture) and pretend another time (`now`).
+ * after-W6 fixture), pretend another time (`now`) and pass their own team config (`teamConfig`).
  */
-export async function courseCheckResponse(request: Request, options: { payload?: Payload; now?: Date } = {}): Promise<Response> {
+export async function courseCheckResponse(
+  request: Request,
+  options: { payload?: Payload; now?: Date; teamConfig?: CourseCheckConfig } = {},
+): Promise<Response> {
   // The code first: checking it needs no database, so a wrong code gets its 400 even while the
   // database sleeps.
-  const code = readCode(new URL(request.url).searchParams.get('code'))
+  const params = new URL(request.url).searchParams
+  const code = readCode(params.get('code'))
   if (code.kind === 'invalid') return json(400, { error: 'invalid_code' })
+  // `include=team` adds the team section; any other value, or none, leaves the three agreed keys alone.
+  const withTeam = readInclude(params.get('include'))
 
   try {
     const payload = options.payload ?? (await getPayload({ config }))
@@ -53,7 +74,11 @@ export async function courseCheckResponse(request: Request, options: { payload?:
       // allowRequest counts the last minute, so waiting a minute is always enough.
       return json(429, { error: 'rate_limited' }, { 'Retry-After': String(WINDOW_MINUTES * 60) })
     }
-    return json(200, await findAnswer(payload, code.kind === 'code' ? code.code : null))
+    const asked = code.kind === 'code' ? code.code : null
+    const found = await findAnswer(payload, asked)
+    if (!withTeam) return json(200, found)
+    const withSection: CourseCheckTeamAnswer = { ...found, team: await findTeamSection(payload, asked, options.teamConfig ?? courseCheckConfig) }
+    return json(200, withSection)
   } catch (error) {
     // The database could not be read (for example while Neon wakes up from a pause). The details go
     // to the server's log, for whoever runs the site; the checker only learns to try again.
@@ -133,5 +158,78 @@ async function bookingWithTwoRepairs(payload: Payload, code: string | null): Pro
     const docs = result.docs as unknown as Record<string, unknown>[]
     if (docs.some((booking) => (code === null || containsToken(String(booking.name ?? ''), code)) && countRepairs(booking) >= 2)) return true
     if (!result.hasNextPage) return false
+  }
+}
+
+/**
+ * The team section (`?include=team`): the site's own collections with their record counts, its
+ * many-to-many links, and the newest record of the transactional collection named in
+ * src/course-check.config.ts (with a code and a name field: the newest whose name holds the code).
+ *
+ * Read with overrideAccess: true, like the rest of the check, because bookings and most transactional
+ * records are private. That is safe here: of a record only its id and creation time leave this
+ * function, and teamSection() builds the section key by key.
+ *
+ * A collection that cannot be counted answers `count: null`, and a transactional collection that
+ * cannot be read answers `status: 'unreadable'`, with the details in the server's log: one broken
+ * collection of a team's own does not hide the rest of the answer.
+ */
+export async function findTeamSection(payload: Payload, code: string | null, config: CourseCheckConfig): Promise<TeamSection> {
+  const all = payload.config.collections as unknown as readonly CollectionShape[]
+  const collections: TeamCollection[] = []
+  for (const collection of all.filter(isOwnCollection)) {
+    collections.push({ slug: collection.slug, count: await countRecords(payload, collection.slug), fromTemplate: TEMPLATE_COLLECTIONS.includes(collection.slug) })
+  }
+  return teamSection(collections, manyToManyLinks(all), await findTransactional(payload, all, code, config))
+}
+
+async function countRecords(payload: Payload, slug: string): Promise<number | null> {
+  try {
+    return (await payload.count({ collection: slug as never, overrideAccess: true })).totalDocs
+  } catch (error) {
+    console.error(`The course check could not count the collection ${slug}:`, error)
+    return null
+  }
+}
+
+async function findTransactional(payload: Payload, all: readonly CollectionShape[], code: string | null, config: CourseCheckConfig): Promise<Transactional> {
+  const slug = config.transactional.collection
+  const target = all.find((collection) => collection.slug === slug)
+  if (!target) return { collection: slug, status: 'missing', codeField: null, newest: null }
+  const codeField = code === null ? null : usableNameField(target.flattenedFields, config.transactional.nameField)
+  try {
+    return { collection: slug, status: 'ok', codeField, newest: await newestTransactional(payload, target, code, codeField) }
+  } catch (error) {
+    console.error(`The course check could not read the collection ${slug}:`, error)
+    return { collection: slug, status: 'unreadable', codeField, newest: null }
+  }
+}
+
+/**
+ * The newest record of `target` (by creation time; by id when the collection keeps no timestamps), or,
+ * with a code and a name field, the newest whose name field holds the code as a whole token. Reads
+ * only the creation time and the name field, and answers only the id and the creation time.
+ */
+async function newestTransactional(payload: Payload, target: CollectionShape, code: string | null, codeField: string | null): Promise<NewestRecord | null> {
+  const byCode = code !== null && codeField !== null
+  const timestamps = target.timestamps !== false
+  const select: Record<string, true> = {}
+  if (timestamps) select.createdAt = true
+  if (byCode) select[codeField] = true
+  for (let page = 1; ; page++) {
+    const result = await payload.find({
+      collection: target.slug as never,
+      where: byCode ? { [codeField]: { like: code } } : {},
+      ...(Object.keys(select).length > 0 ? { select: select as never } : {}),
+      sort: timestamps ? ['-createdAt', '-id'] : '-id',
+      limit: byCode ? PAGE_SIZE : 1,
+      page,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const docs = result.docs as unknown as Record<string, unknown>[]
+    const match = byCode ? docs.find((doc) => containsToken(String(doc[codeField] ?? ''), code)) : docs[0]
+    if (match) return newestRecord(match)
+    if (!byCode || !result.hasNextPage) return null
   }
 }

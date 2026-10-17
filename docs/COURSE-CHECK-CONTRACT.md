@@ -1,8 +1,8 @@
-# The course-check contract (W4–W6)
+# The course-check contract (W4–W6, and team hand-ins)
 
-This is the agreement between this starter and the course app's W4–W6 checkers. Anything a checker relies on is written here. **Change it only together with the checker.**
+This is the agreement between this starter and the course app's W4–W6 checkers, and its checks of a team's hand-ins (the team section, below). Anything a checker relies on is written here. **Change it only together with the checker.**
 
-The route is `src/app/api/course-check/route.ts`, with its rules in `src/lib/courseCheck.ts` and its database reads in `src/lib/courseCheckResponse.ts`. Its tests are `tests/unit/courseCheck.test.ts` and `tests/integration/course-check.test.ts`, with the after-W6 fixture `tests/fixtures/config-after-w6.ts`.
+The route is `src/app/api/course-check/route.ts`, with its rules in `src/lib/courseCheck.ts` and its database reads in `src/lib/courseCheckResponse.ts`. The team fills in `src/course-check.config.ts`. Its tests are `tests/unit/courseCheck.test.ts` and `tests/integration/course-check.test.ts`, with the after-W6 fixture `tests/fixtures/config-after-w6.ts`.
 
 ### Interpretations agreed
 
@@ -21,6 +21,7 @@ Where the text below left a choice, the route does this:
 11. Without a code, a site whose clinics have no `whatToBring` field answers `whatToBring: null`; a site without clinics answers `null` too.
 12. When the database cannot be read, the details go only to the server's log, never into the 503 answer.
 13. A `code` made only of spaces counts as no code: it gets the answer for the whole site, not a 400.
+14. Only `include=team` (any letter case, spaces around it trimmed) adds the team section. Any other `include` value, or none, answers exactly the three keys, as before the team section existed: a checker that asks a site made from an older starter gets the three keys back, and can tell from the missing `team` that the site has no team section.
 
 ## The route
 
@@ -30,6 +31,7 @@ Where the text below left a choice, the route does this:
 | --- | --- |
 | `?code=<personal or team code>` | The answer for that code (hand-ins checked by the course) |
 | no `code` parameter, `code=` (empty), or a code made only of spaces | The answer for the site as a whole ("Check my work" for self-study learners, who have no personal code) |
+| `include=team`, with or without a `code` | The same answer with a fourth key, `team` (see "The team section"), for the checks of a team's hand-ins |
 
 ### The code
 
@@ -43,7 +45,7 @@ Where the text below left a choice, the route does this:
 
 ### The answer
 
-Status 200, `Content-Type: application/json`, `Cache-Control: no-store`. The body is exactly these three keys and nothing else:
+Status 200, `Content-Type: application/json`, `Cache-Control: no-store`. Without `include=team`, the body is exactly these three keys and nothing else (the W4–W6 checkers refuse any other key):
 
 ```json
 { "clinic": true, "whatToBring": ["your bike", "a lock"], "booking": false }
@@ -59,6 +61,54 @@ Status 200, `Content-Type: application/json`, `Cache-Control: no-store`. The bod
 - `booking` counts only when `bookings.repairs` is a `relationship` to `repairs` with `hasMany: true`. Otherwise it answers `false`.
 - The reverse side `repairs.bookings` (a `join` on `repairs`) is what students inspect in `/admin`. The route does not read it.
 - The answer **never** contains a name, an e-mail, a note, an id or a slot. It contains only the two booleans and the clinic's public list.
+
+### The team section
+
+`GET /api/course-check?include=team` (optionally with `&code=<team code>`) answers the three keys above, unchanged, and then `team`:
+
+```json
+{
+  "clinic": true,
+  "whatToBring": null,
+  "booking": false,
+  "team": {
+    "version": 1,
+    "collections": [
+      { "slug": "events", "count": 12, "fromTemplate": false },
+      { "slug": "speakers", "count": 7, "fromTemplate": false },
+      { "slug": "bookings", "count": 3, "fromTemplate": true }
+    ],
+    "manyToMany": [
+      { "from": "events", "field": "speakers", "to": "speakers", "join": "events" },
+      { "from": "events", "field": "details.sponsors", "to": "sponsors", "join": null }
+    ],
+    "transactional": {
+      "collection": "bookings",
+      "status": "ok",
+      "codeField": "name",
+      "newest": { "id": "41", "createdAt": "2026-10-23T09:12:44.120Z" }
+    }
+  }
+}
+```
+
+| Key | Meaning |
+| --- | --- |
+| `version` | `1`. A change to the section's shape raises it, together with this contract and the checker. |
+| `collections` | The site's own collections, in the config's order, each with its number of records (`count`, or `null` when they could not be counted) and `fromTemplate`: whether its slug is one of the six content collections the template ships with (`topics`, `workshops`, `clinics`, `timeSlots`, `bookings`, `repairs`). At most 30. |
+| `manyToMany` | Every relationship field with `hasMany: true` in the site's collections (also inside named groups and tabs, by dotted path; not inside arrays or blocks), as `{ from, field, to, join }`: `join` is the path of the `join` field on `to` whose `collection` names `from` and whose `on` is `field`, the many-to-many shown from the other side, or `null` when there is none. A relationship to several collections gives one entry per collection. At most 30. |
+| `transactional.collection` | The collection named in `src/course-check.config.ts`: the one the team's transactional task saves into. |
+| `transactional.status` | `ok`; `missing` when the site has no collection with that slug; `unreadable` when reading it failed (the details go only to the server's log). |
+| `transactional.codeField` | With a `code` and a usable name field (`nameField` in the config: a top-level `text`, `textarea` or `email` field): that field's name, searched for the code. Otherwise `null`. |
+| `transactional.newest` | The newest record (by `createdAt`; by id when the collection keeps no timestamps), or, when `codeField` is set, the newest whose name field holds the code as a whole token (the same rule as for clinics and bookings). Only `{ id, createdAt }`: the id as text, the time in ISO 8601 (or `null`). `null` when there is no such record. |
+
+**Own collections.** Listed are all collections except: Payload's own (slug starting with `payload-`); every collection with log-ins (`auth`: `users`, `members`, any a team adds: accounts, not content); every upload collection (`upload`: `media`: files); `pages` (the free pages, such as privacy, that every site has whatever its model); and `throttle` (the server's own record of recent requests). Whether the template's own collections count as the team's own is the checker's decision: `fromTemplate` tells it which they are.
+
+**Nothing personal.** The section holds slugs, field names, counts, and of one record only its id and creation time. It never holds a field's value: not a name, an e-mail address, a note or a slot. The name field is searched, never answered. Slugs, field paths and ids are cut to 64 characters.
+
+**The config.** `src/course-check.config.ts` exports `courseCheckConfig = { transactional: { collection, nameField? } }`. The template's is `{ collection: 'bookings', nameField: 'name' }`, so a copy that has not filled it in still answers.
+
+**Costs.** One count per own collection and one or a few reads of the transactional collection, within the same rate limit (30 a minute). The section is read only for `include=team`: the W4–W6 checks never pay for it.
 
 ### Errors
 
@@ -130,4 +180,5 @@ instructions only and has no `TODO:`, which no longer matters to the check. The 
 
 - That the site is warm: allow for a cold start.
 - That `whatToBring` is non-null before the student's W5 migration has run in production. The W5 check reads the live route after the merge's production deploy.
+- That a site has the team section: a copy made before 22 October 2026 answers `include=team` with the three keys only.
 - That a 200 answer proves the route file is unchanged. The W6 check compares the live deployment's commit and the route file with the starter's. The route is not the only check: the course also looks at the live site and the project itself.
