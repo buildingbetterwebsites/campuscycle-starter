@@ -1,4 +1,5 @@
-// Your laptop's database: the one `npm run db` starts (scripts/db.mjs). It is PGlite, a real Postgres
+// Your laptop's database: `npm run dev`, `migrate`, `migrate:create` and `seed` start it by themselves
+// (scripts/lib/laptopDatabase.mjs), and `npm run db` starts it on its own. It is PGlite, a real Postgres
 // that runs inside Node, so you need no account and no installed database. Its data stays in the
 // folder below, inside this project (git leaves that folder out).
 //
@@ -54,7 +55,7 @@ export function answers({ host, port }, timeoutMs = 2000) {
 }
 
 /**
- * Is this the address of your laptop's database, the one `npm run db` starts (this computer, port
+ * Is this the address of your laptop's database, the one the starter starts itself (this computer, port
  * 54329)? Only that one runs without database transactions (src/payload.config.ts explains why). Any
  * other database on this computer, such as the tests' own, keeps them.
  *

@@ -127,7 +127,7 @@ describe('guard run()', () => {
       expect(code).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('This is the live database'))
       expect(error).toHaveBeenCalledWith(
-        "REFUSED: This is the live database (its database id is ep-live-1). Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example, which `npm run db` starts) — see docs/guides/local-setup.md.",
+        "REFUSED: This is the live database (its database id is ep-live-1). Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example) — see docs/guides/local-setup.md.",
       )
       // The old bypass ran the seed before ever checking: proof this version does not.
       expect(seed).not.toHaveBeenCalled()
@@ -165,7 +165,7 @@ describe('guard run()', () => {
         expect(error).toHaveBeenCalledWith(expect.stringContaining('to work on'))
         // Points at the laptop's database and the prefilled line, never at making a Neon account.
         expect(error).toHaveBeenCalledWith(expect.stringContaining('remove the # in front of its DATABASE_URL line'))
-        expect(error).toHaveBeenCalledWith(expect.stringContaining('`npm run db`'))
+        expect(error).toHaveBeenCalledWith(expect.stringContaining("that is your laptop's database, which starts by itself"))
         expect(error).not.toHaveBeenCalledWith(expect.stringContaining('Neon'))
       }
     } finally {
@@ -324,37 +324,138 @@ describe('guard run()', () => {
     }
   })
 
-  it('stops with one plain message when nothing answers at a database address on this computer (npm run db not started)', async () => {
+  // Your laptop's database: the guard starts it when nothing answers, uses it when something does, and
+  // stops what it started when the command ends. `ensureDatabase` stands in for
+  // scripts/lib/laptopDatabase.mjs (tests/unit/laptopDatabase.test.ts covers that one itself).
+  const STARTED = "Started your laptop's database (data in .data/db); it stops when this command stops."
+  const migrated = async () => ({ status: 0, stdout: `${MIGRATIONS_VERIFIED}\n` })
+
+  it("starts your laptop's database when nothing answers, says so in one line, and stops it when the command ends", async () => {
     process.env.DATABASE_URL = LOCAL_DATABASE_URL
-    const migrate = vi.fn(async () => ({ status: 0, stdout: `${MIGRATIONS_VERIFIED}\n` }))
-    const seed = vi.fn(seeded)
-    const answersAt = vi.fn(async () => false)
+    const order: string[] = []
+    const stop = vi.fn(async () => void order.push('stop'))
+    const ensureDatabase = vi.fn(async () => ({ started: true, stop }))
+    const migrate = vi.fn(async () => (order.push('migrate'), migrated()))
+    const seed = vi.fn(async () => (order.push('seed'), seeded()))
+    const command = vi.fn(async (line: string) => (order.push(line.includes('migrate:create') ? 'migrate:create' : 'dev'), 0))
+    for (const name of ['migrate', 'migrate:create', 'seed', 'dev']) {
+      order.length = 0
+      log.mockClear()
+      expect(await run([name], { loadEnv: noLoadEnv, ensureDatabase, migrate, seed, command }), name).toBe(0)
+      expect(log).toHaveBeenCalledWith(STARTED)
+      // The command ran with the database up, and only then was the database stopped.
+      expect(order, name).toEqual([name, 'stop'])
+    }
+    expect(ensureDatabase).toHaveBeenCalledTimes(4)
+  })
+
+  it('stops the database it started also when the command fails', async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const stop = vi.fn(async () => {})
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      for (const command of ['migrate', 'migrate:create', 'seed', 'dev']) {
-        error.mockClear()
-        expect(await run([command], { loadEnv: noLoadEnv, answersAt, migrate, seed }), command).toBe(1)
-        expect(error).toHaveBeenCalledTimes(1)
-        expect(error).toHaveBeenCalledWith(
-          "NOT RUNNING: nothing answers at 127.0.0.1:54329, the database address in .env.local. Your laptop's database is not running: open a second terminal in this project's folder, run `npm run db` there and leave it open. Then try again.",
-        )
-      }
-      expect(answersAt).toHaveBeenCalledWith({ host: '127.0.0.1', port: 54329 })
-      expect(migrate).not.toHaveBeenCalled()
-      expect(seed).not.toHaveBeenCalled()
+      const code = await run(['migrate'], { loadEnv: noLoadEnv, ensureDatabase: async () => ({ started: true, stop }), migrate: async () => ({ status: 3, stdout: '' }) })
+      expect(code).toBe(3)
+      expect(stop).toHaveBeenCalledTimes(1)
     } finally {
       error.mockRestore()
     }
   })
 
-  it('never probes a Neon address, and still refuses the live one before anything else', async () => {
-    process.env.DATABASE_URL = 'postgres://u:p@ep-live-1-pooler.eu-central-1.aws.neon.tech/db'
-    const answersAt = vi.fn(async () => false)
+  it('uses the database that already answers (another terminal runs it): no line, nothing to stop', async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    process.env.DATABASE_URL_UNPOOLED = LOCAL_DATABASE_URL
+    const stop = vi.fn(async () => {})
+    const ensureDatabase = vi.fn(async () => ({ started: false, stop }))
+    const migrate = vi.fn(migrated)
+    expect(await run(['migrate'], { loadEnv: noLoadEnv, ensureDatabase, migrate })).toBe(0)
+    expect(migrate).toHaveBeenCalledTimes(1)
+    // Once, though both addresses name it.
+    expect(ensureDatabase).toHaveBeenCalledTimes(1)
+    expect(log).not.toHaveBeenCalledWith(STARTED)
+  })
+
+  it('says why, and runs nothing, when your laptop\'s database cannot start', async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const migrate = vi.fn(migrated)
+    const seed = vi.fn(seeded)
+    const command = vi.fn(async () => 0)
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt, readMarker: async () => 'ep-live-1' })).toBe(1)
+      for (const name of ['migrate', 'migrate:create', 'seed', 'dev']) {
+        error.mockClear()
+        const ensureDatabase = async () => {
+          throw new Error('the folder is damaged')
+        }
+        expect(await run([name], { loadEnv: noLoadEnv, ensureDatabase, migrate, seed, command }), name).toBe(1)
+        expect(error).toHaveBeenCalledTimes(1)
+        expect(error).toHaveBeenCalledWith(
+          "NOT RUNNING: your laptop's database could not start at 127.0.0.1:54329: the folder is damaged. Fix that, then try again.",
+        )
+      }
+      expect(migrate).not.toHaveBeenCalled()
+      expect(seed).not.toHaveBeenCalled()
+      expect(command).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it("refuses another copy's database at the laptop address, and runs nothing", async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const migrate = vi.fn(migrated)
+    const seed = vi.fn(seeded)
+    const command = vi.fn(async () => 0)
+    const ensureDatabase = async () => {
+      throw Object.assign(new Error("another program answers at 127.0.0.1:54329, not this project's database"), { code: 'NOT_OURS' })
+    }
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      for (const name of ['migrate', 'migrate:create', 'seed', 'dev']) {
+        error.mockClear()
+        expect(await run([name], { loadEnv: noLoadEnv, ensureDatabase, migrate, seed, command }), name).toBe(1)
+        expect(error).toHaveBeenCalledTimes(1)
+        expect(error).toHaveBeenCalledWith(
+          "NOT YOURS: another program answers at 127.0.0.1:54329, most likely the laptop database of another copy of this starter (another project folder) that is still running. Stop it there (Ctrl+C in that terminal), then try again here.",
+        )
+      }
+      expect(migrate).not.toHaveBeenCalled()
+      expect(seed).not.toHaveBeenCalled()
+      expect(command).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('never starts a database at another address on this computer: says nothing answers there', async () => {
+    process.env.DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5432/postgres'
+    const ensureDatabase = vi.fn(async () => ({ started: true, stop: async () => {} }))
+    const migrate = vi.fn(migrated)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt: async () => false, ensureDatabase, migrate })).toBe(1)
+      expect(error).toHaveBeenCalledWith(
+        "NOT RUNNING: nothing answers at 127.0.0.1:5432, the database address in .env.local. Start that database, or use your laptop's own database instead (the DATABASE_URL line from .env.example). Then try again.",
+      )
+      expect(ensureDatabase).not.toHaveBeenCalled()
+      expect(migrate).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('never probes or starts anything for a Neon address, and still refuses the live one before anything else', async () => {
+    process.env.DATABASE_URL = 'postgres://u:p@ep-live-1-pooler.eu-central-1.aws.neon.tech/db'
+    // Even with the laptop's address next to it: the live one is refused first.
+    process.env.DATABASE_URL_UNPOOLED = LOCAL_DATABASE_URL
+    const answersAt = vi.fn(async () => false)
+    const ensureDatabase = vi.fn(async () => ({ started: true, stop: async () => {} }))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, answersAt, ensureDatabase, readMarker: async () => 'ep-live-1' })).toBe(1)
       expect(error).toHaveBeenCalledWith(expect.stringContaining('REFUSED: This is the live database'))
       expect(answersAt).not.toHaveBeenCalled()
+      expect(ensureDatabase).not.toHaveBeenCalled()
     } finally {
       error.mockRestore()
     }

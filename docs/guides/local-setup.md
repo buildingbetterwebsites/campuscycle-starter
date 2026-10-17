@@ -8,7 +8,7 @@ database of its own.
 **Time:** two to three hours, the first time.
 
 **The one rule of this guide:** on your own computer you always work with **your laptop's own**
-database, the one `npm run db` starts. Never with your live site's database. The starter refuses the
+database. Never with your live site's database. The starter refuses the
 live one (see [REFUSED: This is the live database](troubleshooting.md#refused-live-database)).
 
 ---
@@ -58,36 +58,36 @@ run that command:** it changes the package versions this starter is tested with,
 The warnings are about packages the starter builds on (Next.js, Payload and their tools), not about
 your own code.
 
-## Start your laptop's database
+## Your laptop's database
 
 You need a database on your own computer. The starter brings one along: a real Postgres database
-that runs inside Node (it is called PGlite). You need no account and nothing else to install. It is
-not the database Vercel made for your live site, and it never holds real data.
+that runs inside Node (it is called PGlite). You need no account and nothing else to install, and you
+do not start it yourself. It is not the database Vercel made for your live site, and it never holds
+real data.
 
-Start it in its own terminal:
-
-```bash
-npm run db
-```
-
-**You should see:**
+`npm run dev`, `npm run migrate`, `npm run migrate:create` and `npm run seed` start it when it is not
+running yet, and stop it again when they stop. When one of them starts it, it says so:
 
 ```text
-Your laptop's database is running at postgres://postgres:postgres@127.0.0.1:54329/postgres
-Leave this terminal open. Press Ctrl+C to stop it; your data stays in the folder.
+Started your laptop's database (data in .data/db); it stops when this command stops.
 ```
 
-Leave this terminal open while you work: your site and the commands below need it. Open a **second
-terminal** for everything else (in VS Code: **Terminal** → **New Terminal**, or the **+** in the
-terminal panel).
+When `npm run dev` already runs in another terminal, the other commands use its database. That is
+how you run `npm run migrate:create` and `npm run migrate` next to your running site. With two
+terminals, start `npm run dev` first: the command that started the database also stops it.
 
-To stop it, press **Ctrl+C** in its terminal. Your data is kept in the folder `.data/db` in the
-project (Git leaves that folder out), so it is all still there the next time you run `npm run db`.
-Each time you start working on your own computer, run `npm run db` first.
+Your data is kept in the folder `.data/db` in the project (Git leaves that folder out), so it is all
+still there the next time. To start afresh with an empty database: stop `npm run dev`, delete the
+folder `.data/db`, then run `npm run migrate` and `npm run seed` again.
 
-**Something else?** `Your laptop's database is already running`: it runs in another terminal
-already; use that one. To start afresh with an empty database: stop it, delete the folder
-`.data/db`, then run `npm run db`, `npm run migrate` and `npm run seed` again.
+Every copy of the starter on your computer (your own site, and later your team's project) uses the
+same address for its database, so only one copy's database can run at a time. A command never uses
+another copy's database: it stops with `NOT YOURS:` instead. Stop the other copy's `npm run dev` (or
+`npm run db`) in its terminal with **Ctrl+C**, then run your command again.
+
+**Optional: `npm run db`** starts the database on its own, in its own terminal, and keeps it running
+until you press **Ctrl+C** there. You never need it; it can help when you stop and start
+`npm run dev` often.
 
 ## Fill in .env.local
 
@@ -104,7 +104,7 @@ project's `.gitignore` leaves it out.
      `/admin` (it may differ from your live site's);
    - `DATABASE_URL=`: only **remove the `#`** at the start of the line
      `# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`. The address is already
-     filled in: it is your laptop's database, the one `npm run db` starts.
+     filled in: it is your laptop's database.
 3. Save the file.
 
 The four lines then look like this (with your own values for the first three):
@@ -118,8 +118,7 @@ DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
 
 ## Build the tables, add the example, start the site
 
-With `npm run db` running in its own terminal, run these three commands in your second terminal, one
-at a time:
+In the terminal, run these three commands, one at a time:
 
 ```bash
 npm run migrate
@@ -127,8 +126,9 @@ npm run seed
 npm run dev
 ```
 
-**`npm run migrate`** builds your database's tables. A first line that starts with `WARN` and says
-"No email adapter provided" is fine: this site sends no e-mail. **You should see** at the end:
+**`npm run migrate`** builds your database's tables. It first starts your laptop's database (the
+line `Started your laptop's database …`). A line that starts with `WARN` and says "No email adapter
+provided" is fine: this site sends no e-mail. **You should see** at the end:
 
 ```text
 MIGRATIONS: the database has all … committed migrations.
@@ -150,8 +150,7 @@ the site, press **Ctrl+C** in the terminal.
 Images you upload on your own computer go to the project's `media` folder. Git leaves that folder out,
 and your live site never sees it.
 
-**Something else?** A message that starts with `NOT RUNNING:`: your laptop's database is not
-running; start `npm run db` in a second terminal. A message that starts with `REFUSED:`,
+**Something else?** A message that starts with `NOT YOURS:`, `NOT RUNNING:`, `REFUSED:`,
 `MIGRATIONS: FAILED` or `SEED: FAILED`: look it up in
 [the troubleshooting guide](troubleshooting.md#on-your-own-computer).
 
@@ -264,8 +263,7 @@ are done.
    needed). Run `node --version` again to check. A new terminal starts with the newer Node again:
    run `nvm use 22` there too, or once `nvm alias default 22` to make 22 the default.
 3. Follow this guide from [Get the code](#get-the-code), skipping `git clone` (the code is already
-   there): `npm ci`, `npm run db` (in its own terminal), `.env.local`, `npm run migrate`,
-   `npm run seed`, `npm run dev`.
+   there): `npm ci`, `.env.local`, `npm run migrate`, `npm run seed`, `npm run dev`.
 4. When the site starts, the Codespace offers to open port 3000 in your browser. Accept.
 
 ## Checks you can run yourself
@@ -283,7 +281,7 @@ CI runs all of them for you on GitHub. `npm run check` needs more set-up:
   `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD` in the terminal you run it from, with the same values
   the site runs with.
 - It writes test records, so it only uses a database on your own computer, such as your laptop's
-  database from `npm run db`. For a throwaway Neon database (never your live one), also set
+  database. For a throwaway Neon database (never your live one), also set
   `E2E_ALLOW_REMOTE=1`.
 - It expects the site on port 3100. With `npm run dev` (port 3000), set
   `PLAYWRIGHT_BASE_URL=http://localhost:3000`.

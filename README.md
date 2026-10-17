@@ -47,12 +47,10 @@ In short (the [local set-up guide](docs/guides/local-setup.md) explains each ste
 
 1. Install Node 22 (the LTS this starter is tested on).
 2. Clone your repository, then run `npm ci`.
-3. Start your laptop's database with `npm run db`, in its own terminal, and leave it open. It needs
-   no account. Never use your live site's database.
-4. Copy `.env.example` to `.env.local` and fill it in. For `DATABASE_URL`, only remove the `#` in
-   front of its line: the address of your laptop's database is already there.
-5. In a second terminal, run `npm run migrate`, then `npm run seed`, then `npm run dev`, and open
-   <http://localhost:3000>.
+3. Copy `.env.example` to `.env.local`, remove the `#` in front of its `DATABASE_URL` line (that is
+   your laptop's own database: no account, and it starts by itself), and fill in the other three
+   values. Never use your live site's database.
+4. Run `npm run migrate`, then `npm run seed`, then `npm run dev`, and open <http://localhost:3000>.
 
 ## Where things are
 
@@ -96,7 +94,7 @@ fixed in [the course-check contract](docs/COURSE-CHECK-CONTRACT.md). Do not chan
 
 | Command | What it does |
 | --- | --- |
-| `npm run db` | Starts your laptop's database (leave it running in its own terminal; Ctrl+C stops it, the data stays in `.data/db`) |
+| `npm run db` | Optional: starts your laptop's database on its own, in its own terminal (Ctrl+C stops it). `dev`, `migrate`, `migrate:create` and `seed` start it by themselves; the data stays in `.data/db` |
 | `npm run dev` | Starts the site on your computer at <http://localhost:3000>, after checking that your database is not the live one |
 | `npm run build` | The build Vercel runs. On Vercel it first migrates (and, for your live site, records which database is the live one and seeds), then builds the site |
 | `npm start` | Runs a site that `npm run build` built |

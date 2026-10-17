@@ -18,7 +18,7 @@ describe('.env.example', () => {
     expect(lines).toContain('# BLOB_READ_WRITE_TOKEN=')
   })
 
-  it("prefills DATABASE_URL with your laptop's database (npm run db), so a student only removes the #", () => {
+  it("prefills DATABASE_URL with your laptop's database, so a student only removes the #", () => {
     expect(lines).toContain('# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres')
   })
 
