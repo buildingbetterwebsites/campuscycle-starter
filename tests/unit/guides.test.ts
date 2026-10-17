@@ -131,6 +131,7 @@ const PREFIXES = [
   'DATABASE SET UP WRONG',
   'STOPPED:',
   'REFUSED:',
+  'NOT RUNNING:',
   'MIGRATIONS: FAILED',
   'SEED: FAILED',
   'No admin user',
@@ -176,6 +177,7 @@ const MESSAGES: Message[] = [
   },
   { file: 'scripts/guard.mjs', code: 'REFUSED: ${decision.reason}', heading: 'REFUSED: This is the live database' },
   { file: 'scripts/guard.mjs', code: 'REFUSED: ${conflictMessage(error)}', heading: 'REFUSED: Conflicting' },
+  { file: 'scripts/lib/messages.mjs', code: 'NOT RUNNING: nothing answers at', heading: 'NOT RUNNING: nothing answers at' },
   { file: 'scripts/build.mjs', code: 'MIGRATIONS: FAILED ON THE PREVIEW DATABASE' },
   {
     file: 'scripts/build.mjs',

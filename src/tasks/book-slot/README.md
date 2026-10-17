@@ -58,8 +58,8 @@ changed or made-up link shows "We can't show this booking confirmation." and not
 Bookings are private. The clinic page only counts them; it never shows a name or an e-mail address.
 
 **While you test your own copy** you may book more than 5 times in an hour and get "Too many bookings
-from this device." Wait an hour, or empty the `throttle` table in your own (not the live) database,
-for example in Neon's SQL editor: `delete from throttle;`. The rows only hold hashed addresses.
+from this device." Wait an hour, or empty the `throttle` table in your laptop's (never the live)
+database, with any Postgres tool: `delete from throttle;`. The rows only hold hashed addresses.
 
 ## Adapting it to your own site
 

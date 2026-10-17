@@ -7,9 +7,9 @@ database of its own.
 
 **Time:** two to three hours, the first time.
 
-**The one rule of this guide:** on your own computer you always work with **your own** database, a
-free one in your own Neon account. Never with your live site's database. The starter refuses the live
-one (see [REFUSED: This is the live database](troubleshooting.md#refused-live-database)).
+**The one rule of this guide:** on your own computer you always work with **your laptop's own**
+database, the one `npm run db` starts. Never with your live site's database. The starter refuses the
+live one (see [REFUSED: This is the live database](troubleshooting.md#refused-live-database)).
 
 ---
 
@@ -58,21 +58,36 @@ run that command:** it changes the package versions this starter is tested with,
 The warnings are about packages the starter builds on (Next.js, Payload and their tools), not about
 your own code.
 
-## Make your own database
+## Start your laptop's database
 
-You need a database for your own computer. Make it in **your own** free Neon account. It is not the
-database Vercel made for your live site, and it never holds real data.
+You need a database on your own computer. The starter brings one along: a real Postgres database
+that runs inside Node (it is called PGlite). You need no account and nothing else to install. It is
+not the database Vercel made for your live site, and it never holds real data.
 
-1. Go to neon.com and sign up (free). Signing up with GitHub is fine.
-2. Create a new project. Name it, for example, `campuscycle-local`.
-3. **Region:** choose **AWS Europe Central 1 (Frankfurt)**.
-4. Create the project.
-5. On the project's dashboard, click **Connect**.
-6. Copy the connection string. It looks like
-   `postgresql://…` and contains `sslmode=require` near its end (sometimes followed by
-   `&channel_binding=require`). Copy all of it.
+Start it in its own terminal:
 
-Keep the connection string to yourself: it contains your database's password.
+```bash
+npm run db
+```
+
+**You should see:**
+
+```text
+Your laptop's database is running at postgres://postgres:postgres@127.0.0.1:54329/postgres
+Leave this terminal open. Press Ctrl+C to stop it; your data stays in the folder.
+```
+
+Leave this terminal open while you work: your site and the commands below need it. Open a **second
+terminal** for everything else (in VS Code: **Terminal** → **New Terminal**, or the **+** in the
+terminal panel).
+
+To stop it, press **Ctrl+C** in its terminal. Your data is kept in the folder `.data/db` in the
+project (Git leaves that folder out), so it is all still there the next time you run `npm run db`.
+Each time you start working on your own computer, run `npm run db` first.
+
+**Something else?** `Your laptop's database is already running`: it runs in another terminal
+already; use that one. To start afresh with an empty database: stop it, delete the folder
+`.data/db`, then run `npm run db`, `npm run migrate` and `npm run seed` again.
 
 ## Fill in .env.local
 
@@ -87,22 +102,24 @@ project's `.gitignore` leaves it out.
      site's);
    - `FIRST_ADMIN_EMAIL=` and `FIRST_ADMIN_PASSWORD=`: the admin account for your own computer's
      `/admin` (it may differ from your live site's);
-   - `DATABASE_URL=`: first **remove the `#`** at the start of the line `# DATABASE_URL=`, then paste
-     your connection string after the `=` sign.
+   - `DATABASE_URL=`: only **remove the `#`** at the start of the line
+     `# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`. The address is already
+     filled in: it is your laptop's database, the one `npm run db` starts.
 3. Save the file.
 
-The four lines then look like this (with your own values):
+The four lines then look like this (with your own values for the first three):
 
 ```bash
 PAYLOAD_SECRET=a-long-random-text-of-at-least-32-characters
 FIRST_ADMIN_EMAIL=you@example.com
 FIRST_ADMIN_PASSWORD=a-password-you-use-nowhere-else
-DATABASE_URL=postgresql://…?sslmode=require
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
 ```
 
 ## Build the tables, add the example, start the site
 
-Run these three commands, one at a time:
+With `npm run db` running in its own terminal, run these three commands in your second terminal, one
+at a time:
 
 ```bash
 npm run migrate
@@ -133,8 +150,10 @@ the site, press **Ctrl+C** in the terminal.
 Images you upload on your own computer go to the project's `media` folder. Git leaves that folder out,
 and your live site never sees it.
 
-**Something else?** A message that starts with `REFUSED:`, `MIGRATIONS: FAILED` or `SEED: FAILED`:
-look it up in [the troubleshooting guide](troubleshooting.md#on-your-own-computer).
+**Something else?** A message that starts with `NOT RUNNING:`: your laptop's database is not
+running; start `npm run db` in a second terminal. A message that starts with `REFUSED:`,
+`MIGRATIONS: FAILED` or `SEED: FAILED`: look it up in
+[the troubleshooting guide](troubleshooting.md#on-your-own-computer).
 
 Your local site starts without a repair clinic, like your live site did. Add one in your local
 `/admin` the same way (first-hour guide, steps 14 and 15) when you need one.
@@ -245,7 +264,8 @@ are done.
    needed). Run `node --version` again to check. A new terminal starts with the newer Node again:
    run `nvm use 22` there too, or once `nvm alias default 22` to make 22 the default.
 3. Follow this guide from [Get the code](#get-the-code), skipping `git clone` (the code is already
-   there): `npm ci`, `.env.local`, `npm run migrate`, `npm run seed`, `npm run dev`.
+   there): `npm ci`, `npm run db` (in its own terminal), `.env.local`, `npm run migrate`,
+   `npm run seed`, `npm run dev`.
 4. When the site starts, the Codespace offers to open port 3000 in your browser. Accept.
 
 ## Checks you can run yourself
@@ -262,8 +282,9 @@ CI runs all of them for you on GitHub. `npm run check` needs more set-up:
 - It does not read `.env.local`. Set `DATABASE_URL` (or `STORAGE_URL`), `PAYLOAD_SECRET`,
   `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD` in the terminal you run it from, with the same values
   the site runs with.
-- It writes test records, so it only uses a database on your own computer. For a throwaway Neon
-  database (never your live one), also set `E2E_ALLOW_REMOTE=1`.
+- It writes test records, so it only uses a database on your own computer, such as your laptop's
+  database from `npm run db`. For a throwaway Neon database (never your live one), also set
+  `E2E_ALLOW_REMOTE=1`.
 - It expects the site on port 3100. With `npm run dev` (port 3000), set
   `PLAYWRIGHT_BASE_URL=http://localhost:3000`.
 

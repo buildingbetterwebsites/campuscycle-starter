@@ -101,9 +101,10 @@ usually takes only a few seconds. Or the address has a typing mistake.
 **What to do:**
 
 1. Try again once: redeploy on Vercel, or run your command again on your own computer.
-2. Still the same? Check the address. On your own computer: the `DATABASE_URL` line in `.env.local`.
-   Copy it again from Neon's **Connect** screen; it starts with `postgresql://` and ends with
-   `?sslmode=require`. On Vercel: do not type addresses yourself; connecting Neon adds them.
+2. Still the same? Check the address. On your own computer: the `DATABASE_URL` line in `.env.local`
+   is your laptop's database, exactly as `.env.example` has it:
+   `postgres://postgres:postgres@127.0.0.1:54329/postgres`. On Vercel: do not type addresses
+   yourself; connecting Neon adds them.
 
 ## The database did not answer within 110 seconds.
 
@@ -263,8 +264,9 @@ slot's places as they are now; the full one says **Full**.
 every slot. You meet it when you test your own booking form many times in a row.
 
 **What to do:** wait an hour, then try again. On your own computer you can also empty the
-`throttle` table of your **own** database (never the live one): in Neon's **SQL Editor**, run
-`delete from throttle;`. Its rows only hold hashed (unreadable) device addresses.
+`throttle` table of your laptop's database (never the live one): with `npm run db` running, run
+`delete from throttle;` in any Postgres tool connected to the `DATABASE_URL` in your `.env.local`.
+Its rows only hold hashed (unreadable) device addresses.
 
 ## The course check answers {"error": "unavailable"}
 
@@ -417,29 +419,46 @@ your live site.
 
 ## REFUSED: no DATABASE_URL (or STORAGE_URL) is set
 
-> REFUSED: no DATABASE_URL (or STORAGE_URL) is set, so there is no database for `npm run migrate` to work on. Put your own Neon database's connection string in .env.local — see docs/guides/local-setup.md.
+> REFUSED: no DATABASE_URL (or STORAGE_URL) is set, so there is no database for `npm run migrate` to work on. Copy .env.example to .env.local if you have not yet, then remove the # in front of its DATABASE_URL line: that is your laptop's database, which `npm run db` starts — see docs/guides/local-setup.md.
 
 (The message names the command you ran: `migrate`, `migrate:create` or `seed`.)
 
 **What it means:** the command needs a database, and `.env.local` names none.
 
-**What to do:** follow the [local set-up guide](local-setup.md#make-your-own-database): make a free
-Neon database in your own Neon account, copy its address, and put it in `.env.local` on the line
-`DATABASE_URL=`. Check that you removed the `#` at the start of that line.
+**What to do:** open `.env.local` and find the line
+`# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`. Remove the `#` at its start
+and save. No `.env.local` yet? Copy `.env.example` to `.env.local` first
+([local set-up guide](local-setup.md#fill-in-envlocal)). Then start your laptop's database with
+`npm run db` in a second terminal, if it is not running yet, and run your command again.
+
+<a id="not-running"></a>
+
+## NOT RUNNING: nothing answers at …
+
+> NOT RUNNING: nothing answers at 127.0.0.1:54329, the database address in .env.local. Your laptop's database is not running: open a second terminal in this project's folder, run `npm run db` there and leave it open. Then try again.
+
+**What it means:** `.env.local` points at your laptop's database, but it is not running. It only runs
+while `npm run db` runs in a terminal.
+
+**What to do:** open a second terminal (in VS Code: **Terminal** → **New Terminal**), run
+`npm run db` there and leave it open. When it says `Your laptop's database is running at …`, run
+your command again in the first terminal. Your data is still there: it is kept in the folder
+`.data/db`.
 
 <a id="refused-live-database"></a>
 
 ## REFUSED: This is the live database
 
-> REFUSED: This is the live database (its database id is ep-…). Put your own Neon database in .env.local — see docs/guides/local-setup.md.
+> REFUSED: This is the live database (its database id is ep-…). Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example, which `npm run db` starts) — see docs/guides/local-setup.md.
 
 **What it means:** the address in your `.env.local` is your **live** site's database. The starter
 recognises it and refuses: anything you tried out on your own computer would change your real site.
 
-**What to do:** delete that address from `.env.local`. Make a free database of your own, in your own
-Neon account, and use its address instead
-([local set-up guide](local-setup.md#make-your-own-database)). Never copy the address Vercel added
-for your live site.
+**What to do:** delete that address from `.env.local`. Use your laptop's own database instead: the
+line `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`, as in `.env.example`, with
+`npm run db` running in a second terminal
+([local set-up guide](local-setup.md#start-your-laptops-database)). Never copy the address Vercel
+added for your live site.
 
 ## REFUSED: Conflicting DATABASE_URL and STORAGE_URL
 

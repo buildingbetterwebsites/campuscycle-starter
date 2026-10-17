@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { LOCAL_DATABASE_URL } from '../../scripts/lib/localDatabase.mjs'
 
 // Vercel's import screen turns every active line of .env.example into a row. In the account test, the
 // empty DATABASE_URL and BLOB_READ_WRITE_TOKEN rows had to be removed by hand, or they clashed with the
@@ -13,12 +14,17 @@ describe('.env.example', () => {
   })
 
   it('keeps DATABASE_URL and BLOB_READ_WRITE_TOKEN as commented lines, ready to uncomment locally', () => {
-    expect(lines).toContain('# DATABASE_URL=')
+    expect(lines).toContain(`# DATABASE_URL=${LOCAL_DATABASE_URL}`)
     expect(lines).toContain('# BLOB_READ_WRITE_TOKEN=')
   })
 
-  it('holds no values, only names (apart from the commented members switch, whose value is the switch itself)', () => {
-    expect(lines.filter((line) => /^#?\s?[A-Z_]+=./.test(line) && line !== '# MEMBERS_AREA=on')).toEqual([])
+  it("prefills DATABASE_URL with your laptop's database (npm run db), so a student only removes the #", () => {
+    expect(lines).toContain('# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres')
+  })
+
+  it('holds no secret values, only names (apart from two commented lines with a fixed value: the members switch and the laptop database)', () => {
+    const fixed = ['# MEMBERS_AREA=on', `# DATABASE_URL=${LOCAL_DATABASE_URL}`]
+    expect(lines.filter((line) => /^#?\s?[A-Z_]+=./.test(line) && !fixed.includes(line))).toEqual([])
   })
 
   it("keeps the members' area switched off: MEMBERS_AREA=on only as a commented line", () => {

@@ -13,7 +13,8 @@ import nextEnv from '@next/env'
 const { loadEnvConfig: loadEnvConfigFromNext } = nextEnv
 
 import { databaseEnvironment } from './lib/databaseEnv.mjs'
-import { reachMessage } from './lib/messages.mjs'
+import { notRunningMessage, reachMessage } from './lib/messages.mjs'
+import { answers, localAddress } from './lib/localDatabase.mjs'
 import { migrationEnv } from './lib/migrationEnv.mjs'
 import { endpointId } from './lib/endpoint.mjs'
 import { decideLocal } from './lib/decide.mjs'
@@ -170,9 +171,9 @@ function unreachable(error) {
 /**
  * Runs the given guard subcommand. Exported so a test can call it without spawning a process.
  *
- * `loadEnv`, `readMarker`, `migrate` and `seed` are injectable (all default to the real ones) so a test
- * can run this without loading the developer's own real `.env`/`.env.local` files, opening a
- * database connection or starting the migration or seed runner. `loadEnv`'s return value is never
+ * `loadEnv`, `readMarker`, `answersAt`, `migrate` and `seed` are injectable (all default to the real
+ * ones) so a test can run this without loading the developer's own real `.env`/`.env.local` files,
+ * opening a database connection or starting the migration or seed runner. `loadEnv`'s return value is never
  * used, so its type here is looser than `loadEnvConfigFromNext`'s real one - any function accepting
  * `(dir, dev)` will do, which is all a test's stub needs to satisfy.
  *
@@ -180,11 +181,12 @@ function unreachable(error) {
  * @param {{
  *   loadEnv?: (dir: string, dev?: boolean) => unknown,
  *   readMarker?: (url: string) => Promise<string | null>,
+ *   answersAt?: (address: { host: string, port: number }) => Promise<boolean>,
  *   migrate?: (variables: Record<string, string | undefined>) => Promise<{ status: number | null, stdout?: string | null }>,
  *   seed?: (args: string[]) => Promise<{ status: number | null, stdout?: string | null }>,
  * }} [deps]
  */
-export async function run(argv, { loadEnv = loadEnvConfigFromNext, readMarker, migrate = runMigration, seed = runSeed } = {}) {
+export async function run(argv, { loadEnv = loadEnvConfigFromNext, readMarker, answersAt = answers, migrate = runMigration, seed = runSeed } = {}) {
   // The same files Next.js itself reads, and in the same DEVELOPMENT order Next's own dev server and
   // Payload's CLI use (.env.development.local > .env.local > .env.development > .env) - the second
   // argument, `true`, is what selects that order; without it, loadEnvConfig loads PRODUCTION order
@@ -209,7 +211,7 @@ export async function run(argv, { loadEnv = loadEnvConfigFromNext, readMarker, m
 
   if (COMMANDS_NEEDING_A_DATABASE.has(command) && !addresses.pooledUrl) {
     console.error(
-      `REFUSED: no DATABASE_URL (or STORAGE_URL) is set, so there is no database for \`npm run ${command}\` to work on. Put your own Neon database's connection string in .env.local — see docs/guides/local-setup.md.`,
+      `REFUSED: no DATABASE_URL (or STORAGE_URL) is set, so there is no database for \`npm run ${command}\` to work on. Copy .env.example to .env.local if you have not yet, then remove the # in front of its DATABASE_URL line: that is your laptop's database, which \`npm run db\` starts — see docs/guides/local-setup.md.`,
     )
     return 1
   }
@@ -229,8 +231,20 @@ export async function run(argv, { loadEnv = loadEnvConfigFromNext, readMarker, m
     }
     if (!decision.allowed) {
       console.error(
-        `REFUSED: ${decision.reason} Put your own Neon database in .env.local — see docs/guides/local-setup.md.`,
+        `REFUSED: ${decision.reason} Never use it on your laptop: in .env.local, use your laptop's own database instead (the DATABASE_URL line from .env.example, which \`npm run db\` starts) — see docs/guides/local-setup.md.`,
       )
+      return 1
+    }
+  }
+
+  // An address on this computer itself (your laptop's database, from `npm run db`): check that
+  // something answers there before going on. Otherwise the student would see a long connection error
+  // from deep inside Payload instead of the one thing to do: start the database. (The live database is
+  // never on this computer, so the refusal above does not depend on this check.)
+  for (const databaseUrl of new Set([addresses.pooledUrl, addresses.directUrl].filter(Boolean))) {
+    const address = localAddress(databaseUrl)
+    if (address && !(await answersAt(address))) {
+      console.error(notRunningMessage(address))
       return 1
     }
   }
