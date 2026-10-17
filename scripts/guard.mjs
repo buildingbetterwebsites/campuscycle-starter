@@ -13,9 +13,9 @@ import nextEnv from '@next/env'
 const { loadEnvConfig: loadEnvConfigFromNext } = nextEnv
 
 import { databaseEnvironment } from './lib/databaseEnv.mjs'
-import { couldNotStartMessage, nothingAnswersMessage, reachMessage, STARTED_LAPTOP_DATABASE } from './lib/messages.mjs'
+import { couldNotStartMessage, notOursMessage, nothingAnswersMessage, reachMessage, STARTED_LAPTOP_DATABASE } from './lib/messages.mjs'
 import { answers, isLaptopDatabase, localAddress } from './lib/localDatabase.mjs'
-import { ensureLaptopDatabase } from './lib/laptopDatabase.mjs'
+import { ensureLaptopDatabase, NOT_OURS } from './lib/laptopDatabase.mjs'
 import { migrationEnv } from './lib/migrationEnv.mjs'
 import { endpointId } from './lib/endpoint.mjs'
 import { decideLocal } from './lib/decide.mjs'
@@ -262,8 +262,9 @@ export async function run(
   }
 
   // An address on this computer itself. Your laptop's database (the DATABASE_URL line from
-  // .env.example): use it when it already answers (another terminal runs `npm run dev` or `npm run db`),
-  // otherwise start it here, for as long as this command runs. Any other address on this computer is
+  // .env.example): use it when this project's own database already answers (another terminal of this
+  // project runs `npm run dev` or `npm run db`), otherwise start it here, for as long as this command
+  // runs. Another copy's database at that address is refused. Any other address on this computer is
   // not the starter's own: only check that something answers there, so the student reads one line
   // instead of a long connection error from deep inside Payload. (The live database is never on this
   // computer, so the refusal above, which always runs first, does not depend on any of this.)
@@ -280,7 +281,9 @@ export async function run(
           console.log(STARTED_LAPTOP_DATABASE)
         }
       } catch (error) {
-        console.error(couldNotStartMessage(address, error instanceof Error ? error.message : String(error)))
+        // Another copy's database answers there: never use it (its data is another project's).
+        if (/** @type {{ code?: string }} */ (error).code === NOT_OURS) console.error(notOursMessage(address))
+        else console.error(couldNotStartMessage(address, error instanceof Error ? error.message : String(error)))
         return 1
       }
     } else if (!(await answersAt(address))) {

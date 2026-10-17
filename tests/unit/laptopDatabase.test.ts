@@ -7,7 +7,7 @@ import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ensureLaptopDatabase, LOCK_FILE } from '../../scripts/lib/laptopDatabase.mjs'
+import { ensureLaptopDatabase, LOCK_FILE, NOT_OURS } from '../../scripts/lib/laptopDatabase.mjs'
 
 let root: string
 let port: number
@@ -61,14 +61,32 @@ describe('ensureLaptopDatabase', () => {
     expect(existsSync(lockFile())).toBe(false)
   })
 
-  it('uses the database that already answers, and never opens the folder or touches the lock', async () => {
+  it("uses the database that answers when this project's own lock is held by a live process, and never opens the folder", async () => {
     await listen(port)
-    // Whatever lock is there (here one of a process that is gone) is left alone: it is not ours.
+    // This project's lock, held by a live process (here: this test's own).
     mkdirSync(path.dirname(lockFile()), { recursive: true })
-    writeFileSync(lockFile(), '2147483646')
+    writeFileSync(lockFile(), String(process.pid))
     const open = fakeOpen()
     const database = await ensureLaptopDatabase({ root, port, open })
     expect(database.started).toBe(false)
+    expect(open).not.toHaveBeenCalled()
+    expect(readFileSync(lockFile(), 'utf8')).toBe(String(process.pid))
+  })
+
+  it("refuses what answers when this project holds no lock: another copy's database, never used", async () => {
+    await listen(port)
+    const open = fakeOpen()
+    await expect(ensureLaptopDatabase({ root, port, open })).rejects.toMatchObject({ code: NOT_OURS })
+    expect(open).not.toHaveBeenCalled()
+    expect(existsSync(lockFile())).toBe(false)
+  })
+
+  it("refuses what answers when this project's lock is stale (its process is gone), and leaves the lock alone", async () => {
+    await listen(port)
+    mkdirSync(path.dirname(lockFile()), { recursive: true })
+    writeFileSync(lockFile(), '2147483646')
+    const open = fakeOpen()
+    await expect(ensureLaptopDatabase({ root, port, open })).rejects.toMatchObject({ code: NOT_OURS })
     expect(open).not.toHaveBeenCalled()
     expect(readFileSync(lockFile(), 'utf8')).toBe('2147483646')
   })

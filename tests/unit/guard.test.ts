@@ -401,6 +401,32 @@ describe('guard run()', () => {
     }
   })
 
+  it("refuses another copy's database at the laptop address, and runs nothing", async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const migrate = vi.fn(migrated)
+    const seed = vi.fn(seeded)
+    const command = vi.fn(async () => 0)
+    const ensureDatabase = async () => {
+      throw Object.assign(new Error("another program answers at 127.0.0.1:54329, not this project's database"), { code: 'NOT_OURS' })
+    }
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      for (const name of ['migrate', 'migrate:create', 'seed', 'dev']) {
+        error.mockClear()
+        expect(await run([name], { loadEnv: noLoadEnv, ensureDatabase, migrate, seed, command }), name).toBe(1)
+        expect(error).toHaveBeenCalledTimes(1)
+        expect(error).toHaveBeenCalledWith(
+          "NOT YOURS: another program answers at 127.0.0.1:54329, most likely the laptop database of another copy of this starter (another project folder) that is still running. Stop it there (Ctrl+C in that terminal), then try again here.",
+        )
+      }
+      expect(migrate).not.toHaveBeenCalled()
+      expect(seed).not.toHaveBeenCalled()
+      expect(command).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
   it('never starts a database at another address on this computer: says nothing answers there', async () => {
     process.env.DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5432/postgres'
     const ensureDatabase = vi.fn(async () => ({ started: true, stop: async () => {} }))

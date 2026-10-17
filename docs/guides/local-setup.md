@@ -80,8 +80,10 @@ Your data is kept in the folder `.data/db` in the project (Git leaves that folde
 still there the next time. To start afresh with an empty database: stop `npm run dev`, delete the
 folder `.data/db`, then run `npm run migrate` and `npm run seed` again.
 
-Work in one copy of the starter at a time. Two copies on one computer share the database's address,
-so the second would use the first one's database.
+Every copy of the starter on your computer (your own site, and later your team's project) uses the
+same address for its database, so only one copy's database can run at a time. A command never uses
+another copy's database: it stops with `NOT YOURS:` instead. Stop the other copy's `npm run dev` (or
+`npm run db`) in its terminal with **Ctrl+C**, then run your command again.
 
 **Optional: `npm run db`** starts the database on its own, in its own terminal, and keeps it running
 until you press **Ctrl+C** there. You never need it; it can help when you stop and start
@@ -148,8 +150,9 @@ the site, press **Ctrl+C** in the terminal.
 Images you upload on your own computer go to the project's `media` folder. Git leaves that folder out,
 and your live site never sees it.
 
-**Something else?** A message that starts with `NOT RUNNING:`, `REFUSED:`, `MIGRATIONS: FAILED` or
-`SEED: FAILED`: look it up in [the troubleshooting guide](troubleshooting.md#on-your-own-computer).
+**Something else?** A message that starts with `NOT YOURS:`, `NOT RUNNING:`, `REFUSED:`,
+`MIGRATIONS: FAILED` or `SEED: FAILED`: look it up in
+[the troubleshooting guide](troubleshooting.md#on-your-own-computer).
 
 Your local site starts without a repair clinic, like your live site did. Add one in your local
 `/admin` the same way (first-hour guide, steps 14 and 15) when you need one.

@@ -14,6 +14,12 @@
 //     instant, and is accepted to keep this simple.)
 // A lock file, and not just "is something answering at the address?": opening the folder and starting
 // to answer are seconds apart, and in those seconds a second command would see nothing answering.
+//
+// ONLY ITS OWN. Every copy of the starter on a computer uses the same address (127.0.0.1:54329), and a
+// student has at least two copies (their own site and, later, the team project). So something that
+// answers there is used only when THIS project's lock is held by a live process: then it is this
+// project's own database. Anything else that answers is another copy's database (or another program):
+// refused before anything is touched, never used (an error with code NOT_OURS).
 import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -24,6 +30,13 @@ import { answers, LOCAL_DATABASE_FOLDER, LOCAL_DATABASE_HOST, LOCAL_DATABASE_POR
 const PROJECT_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 
 export const LOCK_FILE = '.data/db.lock'
+
+/** The `code` of the error thrown when something answers at the address that is not this project's. */
+export const NOT_OURS = 'NOT_OURS'
+
+function notOurs(host, port) {
+  return Object.assign(new Error(`another program answers at ${host}:${port}, not this project's database`), { code: NOT_OURS })
+}
 
 // Payload opens several connections at once (and `npm run migrate` or `npm run seed` more next to a
 // running `npm run dev`). PGlite still answers one query at a time, so allowing more costs nothing.
@@ -108,12 +121,19 @@ async function answersWithin({ host, port }, ms) {
   return false
 }
 
+/** Does a live process of this project hold the lock (so what answers is this project's database)? */
+function heldHere(lock) {
+  const pid = owner(lock)
+  return pid !== null && alive(pid)
+}
+
 /**
- * Makes sure your laptop's database answers: uses the one that already answers (another terminal's
- * `npm run dev` or `npm run db`), or starts it in this process.
+ * Makes sure this project's laptop database answers: uses it when it already runs (another terminal's
+ * `npm run dev` or `npm run db` of this same project), or starts it in this process.
  *
  * `started: true` means this process started it: call `stop()` when the command ends. With
- * `started: false`, `stop()` does nothing. Throws, with the reason, when it cannot start.
+ * `started: false`, `stop()` does nothing. Throws, with the reason, when it cannot start, and with
+ * `code: NOT_OURS` when something else answers at the address (another copy's database).
  *
  * @param {{ root?: string, host?: string, port?: number, waitMs?: number, open?: typeof openLaptopDatabase }} [options]
  *   all default to the real ones; a test passes its own folder, port and `open`.
@@ -130,18 +150,18 @@ export async function ensureLaptopDatabase({
   const lock = path.join(root, LOCK_FILE)
   const reused = { started: false, stop: async () => {} }
 
-  if (await answers(address)) return reused
+  if (await answers(address)) {
+    if (heldHere(lock)) return reused
+    throw notOurs(host, port)
+  }
 
   // Twice at most: a stale lock is removed once, then claimed.
   for (let attempt = 0; attempt < 2; attempt++) {
     if (claim(lock)) {
       try {
-        // Something may have started answering since the first check (an `npm run db` from before
-        // the lock existed, or another program on this port): never open the folder next to it.
-        if (await answers(address)) {
-          rmSync(lock, { force: true })
-          return reused
-        }
+        // Something may have started answering since the first check. This project's lock is ours,
+        // so it is not this project's database: refuse, and never open the folder next to it.
+        if (await answers(address)) throw notOurs(host, port)
         const database = await open({ folder: path.join(root, LOCAL_DATABASE_FOLDER), host, port })
         let stopped = false
         return {
@@ -164,8 +184,13 @@ export async function ensureLaptopDatabase({
 
     const pid = owner(lock)
     if (pid !== null && alive(pid)) {
-      // Another command holds the lock: it is starting the database right now, or runs it already.
-      if (await answersWithin(address, waitMs)) return reused
+      // Another command of this project holds the lock: it is starting the database right now, or runs
+      // it already. Use it once it answers, if the lock is still held (its holder lets go when what
+      // answers turned out not to be this project's).
+      if (await answersWithin(address, waitMs)) {
+        if (heldHere(lock)) return reused
+        throw notOurs(host, port)
+      }
       throw new Error(
         `another program (process ${pid}) holds ${LOCK_FILE}, but nothing answers at ${host}:${port}. If no other terminal runs this project, delete the file ${LOCK_FILE}`,
       )

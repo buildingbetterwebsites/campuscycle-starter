@@ -8,23 +8,24 @@
 // the same way, with the same code, as the commands above (scripts/lib/laptopDatabase.mjs).
 import process from 'node:process'
 
-import { ensureLaptopDatabase } from './lib/laptopDatabase.mjs'
+import { ensureLaptopDatabase, NOT_OURS } from './lib/laptopDatabase.mjs'
 import { answers, LOCAL_DATABASE_FOLDER, LOCAL_DATABASE_HOST, LOCAL_DATABASE_PORT, LOCAL_DATABASE_URL } from './lib/localDatabase.mjs'
+import { notOursMessage } from './lib/messages.mjs'
 
-const ALREADY_RUNNING = `Your laptop's database is already running: something answers at ${LOCAL_DATABASE_HOST}:${LOCAL_DATABASE_PORT} (another terminal's \`npm run db\` or \`npm run dev\`). Use that one.`
+const ALREADY_RUNNING = `Your laptop's database is already running (another terminal's \`npm run db\` or \`npm run dev\` of this project). Use that one.`
 
-if (await answers({ host: LOCAL_DATABASE_HOST, port: LOCAL_DATABASE_PORT })) {
-  console.error(ALREADY_RUNNING)
-  process.exit(1)
-}
+const address = { host: LOCAL_DATABASE_HOST, port: LOCAL_DATABASE_PORT }
 
-console.log(`Starting your laptop's database (its data is kept in ${LOCAL_DATABASE_FOLDER}) ...`)
+// When something answers already, ensureLaptopDatabase decides whose it is: this project's own (used,
+// so this says it is already running) or another copy's (refused).
+if (!(await answers(address))) console.log(`Starting your laptop's database (its data is kept in ${LOCAL_DATABASE_FOLDER}) ...`)
 
 let database
 try {
   database = await ensureLaptopDatabase()
 } catch (error) {
-  console.error(`Could not start your laptop's database: ${error instanceof Error ? error.message : String(error)}`)
+  if (/** @type {{ code?: string }} */ (error).code === NOT_OURS) console.error(notOursMessage(address))
+  else console.error(`Could not start your laptop's database: ${error instanceof Error ? error.message : String(error)}`)
   process.exit(1)
 }
 if (!database.started) {

@@ -451,6 +451,20 @@ reason.
   Start afresh with an empty database: delete the folder `.data/db`, then run `npm run migrate` and
   `npm run seed` again. Only your local test data is lost; your live site is not touched.
 
+<a id="not-yours"></a>
+
+## NOT YOURS: another program answers at …
+
+> NOT YOURS: another program answers at 127.0.0.1:54329, most likely the laptop database of another copy of this starter (another project folder) that is still running. Stop it there (Ctrl+C in that terminal), then try again here.
+
+**What it means:** every copy of the starter on your computer (for example your own site and your
+team's project) uses the same address for its laptop database, so only one of them can run at a time.
+Another copy's database runs there now. The starter never uses it from this project: its data belongs
+to the other project.
+
+**What to do:** find the terminal of the other project that runs `npm run dev` or `npm run db`, and
+press **Ctrl+C** there. Then run your command again here: it starts this project's own database.
+
 ## NOT RUNNING: nothing answers at …
 
 > NOT RUNNING: nothing answers at 127.0.0.1:5432, the database address in .env.local. Start that database, or use your laptop's own database instead (the DATABASE_URL line from .env.example). Then try again.

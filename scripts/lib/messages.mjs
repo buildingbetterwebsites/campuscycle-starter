@@ -25,6 +25,16 @@ export function couldNotStartMessage({ host, port }, reason) {
 }
 
 /**
+ * Something answers at your laptop's database's address, but this project did not start it: most
+ * likely another copy of the starter (scripts/lib/laptopDatabase.mjs, "ONLY ITS OWN").
+ *
+ * @param {{ host: string, port: number }} address
+ */
+export function notOursMessage({ host, port }) {
+  return `NOT YOURS: another program answers at ${host}:${port}, most likely the laptop database of another copy of this starter (another project folder) that is still running. Stop it there (Ctrl+C in that terminal), then try again here.`
+}
+
+/**
  * A database address on this computer that is not your laptop's database (another port), where nothing
  * answers. The starter does not start that one: it is not its own.
  *

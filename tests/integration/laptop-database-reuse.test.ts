@@ -13,13 +13,15 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import pg from 'pg'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { ensureLaptopDatabase, LOCK_FILE } from '../../scripts/lib/laptopDatabase.mjs'
+import { ensureLaptopDatabase, LOCK_FILE, NOT_OURS } from '../../scripts/lib/laptopDatabase.mjs'
 import { migrationVerified } from '../../scripts/lib/migrationResult.mjs'
 
 const MODULE = pathToFileURL(fileURLToPath(new URL('../../scripts/lib/laptopDatabase.mjs', import.meta.url))).href
 const MIGRATION_RUNNER = fileURLToPath(new URL('../../scripts/migrate.mjs', import.meta.url))
 
 const root = mkdtempSync(path.join(tmpdir(), 'bw-laptop-db-reuse-'))
+// A second copy of the starter: another project folder on the same computer.
+const otherCopy = mkdtempSync(path.join(tmpdir(), 'bw-laptop-db-other-copy-'))
 let host: ChildProcess | undefined
 
 async function freePort(): Promise<number> {
@@ -76,10 +78,11 @@ function runMigrations(url: string): Promise<{ status: number | null; stdout: st
 afterAll(() => {
   if (host && host.exitCode === null) host.kill()
   rmSync(root, { recursive: true, force: true })
+  rmSync(otherCopy, { recursive: true, force: true })
 })
 
 describe("your laptop's database, started by one command and used by another", () => {
-  it('a migration next to it uses that database, never a second one on the folder; the data stays when it stops', async () => {
+  it("a migration next to it uses that database (never a second one on the folder), another copy of the starter is refused, and the data stays when it stops", async () => {
     const port = await freePort()
     const url = `postgres://postgres:postgres@127.0.0.1:${port}/postgres`
     host = await startHost(port)
@@ -90,6 +93,11 @@ describe("your laptop's database, started by one command and used by another", (
     const second = await ensureLaptopDatabase({ root, port, open })
     expect(second.started).toBe(false)
     expect(open).not.toHaveBeenCalled()
+
+    // Another copy of the starter, on the same address: refused, and its own folder is never opened.
+    const openOther = vi.fn()
+    await expect(ensureLaptopDatabase({ root: otherCopy, port, open: openOther })).rejects.toMatchObject({ code: NOT_OURS })
+    expect(openOther).not.toHaveBeenCalled()
 
     const migration = await runMigrations(url)
     expect(migrationVerified(migration), migration.stdout).toBe(true)
