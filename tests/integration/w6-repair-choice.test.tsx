@@ -30,6 +30,8 @@ const PLACEHOLDER = '{/* W6: <RepairChoice repairs={props.repairs} /> */}'
 /** BookingForm.tsx with W6 switched on, as a student would do it, plus exports for this test. */
 function switchedOn(source: string): string {
   const lines = source.split('\n')
+  // A learner's copy after W6 has it switched on already: test that one as it is.
+  if (!lines.some((line) => line.startsWith('// function RepairChoice('))) return withExports(lines)
   const start = lines.findIndex((line) => line.startsWith('// function RepairChoice('))
   const end = lines.findIndex((line, i) => i > start && line === '// }')
   if (start < 0 || end < 0) throw new Error('The W6 RepairChoice block was not found in BookingForm.tsx')
@@ -39,6 +41,10 @@ function switchedOn(source: string): string {
   const placeholder = lines.findIndex((line) => line.trim() === PLACEHOLDER)
   if (placeholder < 0) throw new Error('The W6 placeholder line was not found in BookingForm.tsx')
   lines[placeholder] = lines[placeholder].replace(PLACEHOLDER, '<RepairChoice repairs={props.repairs} />')
+  return withExports(lines)
+}
+
+function withExports(lines: string[]): string {
   // The copy lives outside the project, where the project's JSX setting does not reach it: the
   // React import lets its JSX compile there too.
   return `import * as React from 'react'\n${lines.join('\n')}\nexport { RepairChoice }\nvoid React\n`
@@ -115,12 +121,18 @@ describe('W6 switched on: the ticked repairs survive a failed send', () => {
     expect(checked(render(lost))).toEqual(['1', '2'])
   })
 
-  it('hands back only repair ids, and saves nothing from them (the whitelist still holds before W6)', async () => {
+  it('hands back only repair ids, and saves nothing from them before W6 (the whitelist), the ticked ones after W6', async () => {
     const result = await send({ email: 'nope', repairs: ['2', 'x', '<b>', '3'] })
     expect(result).toMatchObject({ values: { repairs: ['2', '3'] } })
-    const saved = await send({ repairs: ['2'] })
+    // After W6 (a learner's copy: bookings.repairs and the two createBooking lines are switched on),
+    // the ticked repairs are saved, so they must be real ones.
+    const w6 = p.collections.bookings.config.flattenedFields.some((field) => field.name === 'repairs')
+    if (w6) await resetCollections(['repairs'])
+    const ticked = w6 ? (await p.create({ collection: 'repairs', data: { name: 'Each small repair', price: 5 } })).id : 2
+    const saved = await send({ repairs: [String(ticked)] })
     expect(saved.ok).toBe(true)
     const [booking] = (await p.find({ collection: 'bookings', depth: 0 })).docs
-    expect(booking).not.toHaveProperty('repairs')
+    if (w6) expect((booking as unknown as { repairs: unknown }).repairs).toEqual([ticked])
+    else expect(booking).not.toHaveProperty('repairs')
   })
 })
