@@ -29,9 +29,20 @@ import { withVerifiedSsl } from '../scripts/lib/ssl.mjs'
 // Finds the database address under DATABASE_URL or under STORAGE_URL (the name Vercel's Neon
 // connection can choose), the same way the build and the local guard do.
 import { databaseEnvironment } from '../scripts/lib/databaseEnv.mjs'
+import { databaseTransactions } from '../scripts/lib/localDatabase.mjs'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+
+const databaseUrl = databaseEnvironment(process.env).pooledUrl
+// Your laptop's database (`npm run db`, PGlite) runs without database transactions; the live and
+// preview databases (Neon) keep them. WHY: PGlite answers one connection at a time, and while one
+// connection has a transaction open, every other connection waits. Every save from /admin checks the
+// record's lock over a second connection, outside its own transaction, so the two waited for each
+// other forever ("Submitting..." in /admin, then no answer at all). Without transactions on the laptop
+// that cannot happen. The cost, on the laptop only: a save that fails halfway is not undone, and the
+// time slot lock (src/lib/slotLock.ts) stands aside. Reproduced in tests/integration/laptop-database.test.ts.
+const transactions = databaseTransactions(databaseUrl)
 
 const config = buildConfig({
   admin: {
@@ -58,14 +69,18 @@ const config = buildConfig({
   // and the seed creates the first editor itself. Fails closed with no admin user and no FIRST_ADMIN_*
   // set to fill it from - see src/lib/firstAdmin.ts.
   onInit: createFirstAdmin,
+  // Read by src/lib/slotLock.ts, which needs to know whether saves run inside a transaction.
+  custom: { databaseTransactions: transactions },
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: postgresAdapter({
     beforeSchemaInit: [restrictLinkedDeletion],
     pool: {
-      connectionString: withVerifiedSsl(databaseEnvironment(process.env).pooledUrl),
+      connectionString: withVerifiedSsl(databaseUrl),
     },
+    // false only for your laptop's database (see `transactions` above); otherwise Payload's default.
+    ...(transactions ? {} : { transactionOptions: false as const }),
     // The database changes only through committed migrations, locally too: no automatic "push".
     push: false,
     migrationDir: path.resolve(dirname, 'migrations'),

@@ -24,6 +24,11 @@ export async function lockTimeSlot(req: PayloadRequest, id: number | string, col
   const transactionID = req.transactionID ? await req.transactionID : undefined
   const transaction = transactionID === undefined ? undefined : adapter.sessions[String(transactionID)]
   if (!transaction) {
+    // Your laptop's database runs without transactions (src/payload.config.ts explains why), so there
+    // is nothing to lock with there. It is yours alone, so two saves of one slot at the same moment do
+    // not happen. Everywhere else a missing transaction is a mistake. (Without transactions, Payload
+    // still sets transactionID: to a promise of null.)
+    if (transactionID == null && req.payload.config.custom?.databaseTransactions === false) return
     throw new Error('lockTimeSlot needs a database transaction: call it from a hook or operation that runs inside one.')
   }
 

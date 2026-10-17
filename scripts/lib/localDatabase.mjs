@@ -52,3 +52,24 @@ export function answers({ host, port }, timeoutMs = 2000) {
     socket.once('error', () => done(false))
   })
 }
+
+/**
+ * Is this the address of your laptop's database, the one `npm run db` starts (this computer, port
+ * 54329)? Only that one runs without database transactions (src/payload.config.ts explains why). Any
+ * other database on this computer, such as the tests' own, keeps them.
+ *
+ * @param {string | undefined} url
+ */
+export function isLaptopDatabase(url) {
+  return localAddress(url)?.port === LOCAL_DATABASE_PORT
+}
+
+/**
+ * Does the site use database transactions on this database? Yes everywhere, except on your laptop's
+ * database: see the comment at `transactionOptions` in src/payload.config.ts.
+ *
+ * @param {string | undefined} url
+ */
+export function databaseTransactions(url) {
+  return !isLaptopDatabase(url)
+}
