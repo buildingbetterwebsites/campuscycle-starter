@@ -25,6 +25,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import pg from 'pg'
+
 import { answers, LOCAL_DATABASE_FOLDER, LOCAL_DATABASE_HOST, LOCAL_DATABASE_PORT } from './localDatabase.mjs'
 
 const PROJECT_ROOT = fileURLToPath(new URL('../..', import.meta.url))
@@ -43,18 +45,39 @@ function notOurs(host, port) {
 const MAX_CONNECTIONS = 50
 
 /**
+ * pglite-socket (0.2.11) frees a connection's place only when the connection closes normally. A
+ * command that ends with its connections still open (`npm run migrate` and `npm run seed` do: Payload
+ * keeps one open, so the runners end the process themselves) makes the connection fail instead. Then
+ * pglite-socket closes it but kept its place taken for good, and after enough commands next to a
+ * running `npm run dev` every new connection was refused ("MIGRATIONS: FAILED" with no plain reason).
+ * So the place is freed on a failure too: the connection is closed by then anyway.
+ * tests/integration/laptop-database-places.test.ts fails without this.
+ *
+ * @param {{ handlers: Set<EventTarget> }} server
+ */
+function freePlacesOfFailedConnections(server) {
+  const add = server.handlers.add.bind(server.handlers)
+  server.handlers.add = (handler) => {
+    handler.addEventListener('error', () => server.handlers.delete(handler))
+    return add(handler)
+  }
+}
+
+/**
  * Opens the data folder and answers at host:port. Only call it while holding the lock.
  *
- * @param {{ folder: string, host: string, port: number }} where
+ * @param {{ folder: string, host: string, port: number, maxConnections?: number }} where
+ *   maxConnections: only a test sets it lower.
  * @returns {Promise<{ stop: () => Promise<void> }>}
  */
-export async function openLaptopDatabase({ folder, host, port }) {
+export async function openLaptopDatabase({ folder, host, port, maxConnections = MAX_CONNECTIONS }) {
   // Loaded only here: a site on Neon never needs PGlite.
   const { PGlite } = await import('@electric-sql/pglite')
   const { PGLiteSocketServer } = await import('@electric-sql/pglite-socket')
   mkdirSync(folder, { recursive: true })
   const db = await PGlite.create(folder)
-  const server = new PGLiteSocketServer({ db, host, port, maxConnections: MAX_CONNECTIONS })
+  const server = new PGLiteSocketServer({ db, host, port, maxConnections })
+  freePlacesOfFailedConnections(server)
   try {
     await server.start()
   } catch (error) {
@@ -199,4 +222,29 @@ export async function ensureLaptopDatabase({
     rmSync(lock, { force: true })
   }
   throw new Error(`could not claim ${LOCK_FILE}`)
+}
+
+/**
+ * Does the database at `url` take a connection and answer a query, within `ms` milliseconds? Something
+ * that answers at the address is not enough: a database that takes no more connections, or never
+ * answers a query, would leave a command waiting with no reason given. Returns null when it works, or
+ * the reason when it does not.
+ *
+ * @param {string} url
+ * @param {number} [ms]
+ * @returns {Promise<string | null>}
+ */
+export async function databaseProblem(url, ms = 15_000) {
+  const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: ms, query_timeout: ms })
+  // A failing connection also reports the problem as an event: without a listener, Node would stop.
+  client.on('error', () => {})
+  try {
+    await client.connect()
+    await client.query('select 1')
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  } finally {
+    await client.end().catch(() => {})
+  }
 }

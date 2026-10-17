@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import net from 'node:net'
 import { fileURLToPath } from 'node:url'
-import { check, run, runnerSpawnOptions } from '../../scripts/guard.mjs'
+import { check, run as runGuard, runnerSpawnOptions } from '../../scripts/guard.mjs'
 import { answers, LOCAL_DATABASE_URL, localAddress } from '../../scripts/lib/localDatabase.mjs'
 import { MIGRATIONS_VERIFIED } from '../../scripts/lib/migrationResult.mjs'
 import { SEED_VERIFIED } from '../../scripts/lib/seedResult.mjs'
+
+// The guard checks that your laptop's database takes a connection before it runs anything. These tests
+// never connect to a real database: the check says it works, unless a test says otherwise.
+const run = (argv: string[], deps: Parameters<typeof runGuard>[1] = {}) => runGuard(argv, { checkDatabase: async () => null, ...deps })
 
 // What the seed runner returns when it really finished: exit code 0 AND its own final line.
 const seeded = async () => ({ status: 0, stdout: `SEED: created 20, kept 0\n${SEED_VERIFIED}\n` })
@@ -422,6 +426,53 @@ describe('guard run()', () => {
       expect(migrate).not.toHaveBeenCalled()
       expect(seed).not.toHaveBeenCalled()
       expect(command).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it("says so, runs nothing and stops what it started, when your laptop's database answers but takes no connections", async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const stop = vi.fn(async () => {})
+    const migrate = vi.fn(migrated)
+    const seed = vi.fn(seeded)
+    const command = vi.fn(async () => 0)
+    const checkDatabase = vi.fn(async () => 'Connection terminated unexpectedly')
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      for (const name of ['migrate', 'migrate:create', 'seed', 'dev']) {
+        error.mockClear()
+        stop.mockClear()
+        expect(await run([name], { loadEnv: noLoadEnv, ensureDatabase: async () => ({ started: true, stop }), checkDatabase, migrate, seed, command }), name).toBe(1)
+        expect(error).toHaveBeenCalledWith(
+          "NOT RUNNING: your laptop's database at 127.0.0.1:54329 takes no connections (Connection terminated unexpectedly). If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then try again.",
+        )
+        expect(stop).toHaveBeenCalledTimes(1)
+      }
+      expect(checkDatabase).toHaveBeenCalledWith(LOCAL_DATABASE_URL)
+      expect(migrate).not.toHaveBeenCalled()
+      expect(seed).not.toHaveBeenCalled()
+      expect(command).not.toHaveBeenCalled()
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('a runner that Node stopped halfway (exit code 13, no error of its own) gets a plain message, not only Node\'s warning', async () => {
+    process.env.DATABASE_URL = LOCAL_DATABASE_URL
+    const ensureDatabase = async () => ({ started: false, stop: async () => {} })
+    const halfway = async () => ({ status: 13, stdout: '' })
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await run(['migrate'], { loadEnv: noLoadEnv, ensureDatabase, migrate: halfway })).toBe(1)
+      expect(error).toHaveBeenCalledWith(
+        'MIGRATIONS: FAILED. The migration stopped halfway without an error of its own: it lost its connection to the database, or never got one. If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then run `npm run migrate` again: it only runs what is still missing.',
+      )
+      error.mockClear()
+      expect(await run(['seed'], { loadEnv: noLoadEnv, ensureDatabase, seed: halfway })).toBe(1)
+      expect(error).toHaveBeenCalledWith(
+        'SEED: FAILED. The seed stopped halfway without an error of its own: it lost its connection to the database, or never got one. If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then run `npm run seed` again: it only creates what is still missing.',
+      )
     } finally {
       error.mockRestore()
     }

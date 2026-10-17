@@ -465,6 +465,35 @@ to the other project.
 **What to do:** find the terminal of the other project that runs `npm run dev` or `npm run db`, and
 press **Ctrl+C** there. Then run your command again here: it starts this project's own database.
 
+<a id="takes-no-connections"></a>
+
+## NOT RUNNING: your laptop's database at … takes no connections
+
+> NOT RUNNING: your laptop's database at 127.0.0.1:54329 takes no connections (the reason). If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then try again.
+
+**What it means:** your laptop's database runs (most often inside `npm run dev` in another terminal),
+but it did not take this command's connection, or did not answer it. The command stops before it does
+anything.
+
+**What to do:** in the terminal that runs `npm run dev` (or `npm run db`), press **Ctrl+C**, then start
+it again. Then run your command again. Your data is kept: it is in the folder `.data/db`.
+
+<a id="stopped-halfway"></a>
+
+## FAILED. The migration (or the seed) stopped halfway
+
+> MIGRATIONS: FAILED. The migration stopped halfway without an error of its own: it lost its connection to the database, or never got one. If `npm run dev` runs in another terminal, stop it there with Ctrl+C and start it again. Then run `npm run migrate` again: it only runs what is still missing.
+
+(The seed says the same with `SEED: FAILED. The seed stopped halfway …` and `npm run seed`.) Just above
+it, Node may print `Warning: Detected unsettled top-level await`: that is the same problem.
+
+**What it means:** the command was waiting for its database, and the answer could no longer come. It
+stopped without finishing.
+
+**What to do:** stop `npm run dev` in its terminal with **Ctrl+C** and start it again (if it runs).
+Then run the command again. Nothing is lost: it runs only the migrations that are still missing (the
+seed creates only what is still missing).
+
 ## NOT RUNNING: nothing answers at …
 
 > NOT RUNNING: nothing answers at 127.0.0.1:5432, the database address in .env.local. Start that database, or use your laptop's own database instead (the DATABASE_URL line from .env.example). Then try again.
