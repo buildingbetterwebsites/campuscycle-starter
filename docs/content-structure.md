@@ -5,6 +5,9 @@ For teams; a learner working alone can delete this file.
 What content your site holds and how it is organised. It is read by everyone who adds a page or a
 field, so the site keeps one structure. Fill in every place marked TODO.
 
+The collection your transactional task saves into is also named in `src/course-check.config.ts`:
+the course's checks read it there.
+
 ## Content inventory
 
 TODO: every kind of content the site shows, where it comes from, and who keeps it up to date.

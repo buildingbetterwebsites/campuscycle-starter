@@ -72,8 +72,9 @@ In short (the [local set-up guide](docs/guides/local-setup.md) explains each ste
 | `docs/brief.md`, `docs/requirements.md`, `docs/decisions`, `docs/test-report.md`, `docs/handover.md` | Your project documents, to fill in, with at least two decision records in `docs/decisions` |
 
 If you work in a team, you also fill in `docs/team-agreement.md`, `docs/content-structure.md` and `docs/design-rationale.md`.
+A team also names the collection its transactional task saves into in `src/course-check.config.ts`, so the course's checks can see that task's records land.
 
-The route `/api/course-check` answers the course's checks about your warm-ups; what it answers is
+The route `/api/course-check` answers the course's checks about your warm-ups and your team's hand-ins; what it answers is
 fixed in [the course-check contract](docs/COURSE-CHECK-CONTRACT.md). Do not change either.
 
 **The marked places.** The course's warm-ups ask you to change three places, each marked in the code:

@@ -6,7 +6,7 @@ import type { PoolClient } from 'pg'
 import { getPayload, type Payload } from 'payload'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as route from '../../src/app/api/course-check/route'
-import { hasRepairsRelation, hasWhatToBringList, type FieldShape } from '../../src/lib/courseCheck'
+import { hasRepairsRelation, hasWhatToBringList, type FieldShape, type TeamSection } from '../../src/lib/courseCheck'
 import { courseCheckResponse } from '../../src/lib/courseCheckResponse'
 import { allowRequest } from '../../src/tasks/book-slot/guards'
 import { afterW6Config, collections as fixtureCollections, type Shape } from '../fixtures/config-after-w6'
@@ -65,6 +65,18 @@ const ok = (clinic: boolean, whatToBring: string[] | null, booking: boolean) => 
   cache: 'no-store',
   body: JSON.stringify({ clinic, whatToBring, booking }),
 })
+
+// The team section (?include=team): the answer's `team`, after a 200 with the three agreed keys first.
+async function teamOf(response: Response): Promise<TeamSection> {
+  expect(response.status).toBe(200)
+  const body = (await response.json()) as Record<string, unknown>
+  expect(Object.keys(body)).toEqual(['clinic', 'whatToBring', 'booking', 'team'])
+  return body.team as TeamSection
+}
+
+// The template's six content collections, in the config's order: users, media, pages, throttle and
+// members are left out (src/lib/courseCheck.ts, isOwnCollection).
+const TEMPLATE_SLUGS = ['topics', 'workshops', 'clinics', 'timeSlots', 'bookings', 'repairs']
 
 describe('the course check, before W5 and W6 (the app as it ships)', () => {
   // The app as the starter ships it, without W5's and W6's fields (tests/fixtures/config-after-w6.ts,
@@ -222,6 +234,92 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
       expect(body, query).toBe(JSON.stringify({ clinic: true, whatToBring: null, booking: false }))
     }
   })
+
+  it('adds the team section only for include=team; any other include leaves the three keys', async () => {
+    await addClinic(p, 'Code BW-7F3K.')
+    for (const query of ['?include=teams', '?include=', '?include=all&code=BW-7F3K', '?team=1']) {
+      expect(Object.keys(await (await answer(request(query))).json()), query).toEqual(['clinic', 'whatToBring', 'booking'])
+    }
+    for (const query of ['?include=team', '?include=TEAM&code=BW-7F3K']) {
+      expect((await teamOf(await answer(request(query)))).version, query).toBe(1)
+    }
+    // A wrong code is still a 400, before the database is read, with or without the team section.
+    expect(await seen(await answer(request('?include=team&code=K7')))).toEqual({ status: 400, type: 'application/json', cache: 'no-store', body: INVALID })
+  })
+
+  it("team: the template's collections with their counts, its many-to-many, and no booking yet", async () => {
+    const team = await teamOf(await answer(request('?include=team')))
+    expect(team.collections).toEqual(TEMPLATE_SLUGS.map((slug) => ({ slug, count: 0, fromTemplate: true })))
+    // The template's one many-to-many: workshops.topics, shown on the topics by the join `workshops`.
+    expect(team.manyToMany).toEqual([{ from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' }])
+    expect(team.transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: null, newest: null })
+
+    const clinic = await addClinic(p, 'Code BW-7F3K.')
+    await addBooking(p, clinic.id, 'Somebody')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const newest = await addBooking(p, clinic.id, 'Somebody else')
+    const after = await teamOf(await answer(request('?include=team')))
+    expect(after.collections.find((collection) => collection.slug === 'bookings')?.count).toBe(2)
+    expect(after.collections.find((collection) => collection.slug === 'timeSlots')?.count).toBe(2)
+    expect(after.collections.find((collection) => collection.slug === 'clinics')?.count).toBe(1)
+    expect(after.transactional).toEqual({
+      collection: 'bookings', status: 'ok', codeField: null, newest: { id: String(newest.id), createdAt: new Date(newest.createdAt).toISOString() },
+    })
+  })
+
+  it('team, with a code: the newest booking whose name holds the code as a whole token', async () => {
+    const clinic = await addClinic(p, 'Code BW-7F3K.')
+    const mine = await addBooking(p, clinic.id, 'Team K7Q2, test booking')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    await addBooking(p, clinic.id, 'Team K7Q2X')
+    await addBooking(p, clinic.id, 'Somebody else')
+    const team = await teamOf(await answer(request('?include=team&code=k7q2')))
+    expect(team.transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: 'name', newest: { id: String(mine.id), createdAt: new Date(mine.createdAt).toISOString() } })
+    expect((await teamOf(await answer(request('?include=team&code=Z9Z9')))).transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: 'name', newest: null })
+  })
+
+  it("team: reads the team's own config: another collection, a name field that is not text, a missing collection", async () => {
+    const clinic = await addClinic(p, 'Code BW-7F3K.')
+    const repair = await p.create({ collection: 'repairs', data: { name: 'Flat tyre K7Q2', price: 10 } })
+    await addBooking(p, clinic.id, 'Mina K7Q2')
+    const withConfig = (transactional: { collection: string; nameField?: string }) => (incoming: Request) =>
+      courseCheckResponse(incoming, { payload: p, teamConfig: { transactional } })
+    const repairs = await teamOf(await withConfig({ collection: 'repairs', nameField: 'name' })(request('?include=team&code=K7Q2')))
+    expect(repairs.transactional).toEqual({ collection: 'repairs', status: 'ok', codeField: 'name', newest: { id: String(repair.id), createdAt: new Date(repair.createdAt).toISOString() } })
+    // `price` is a number: it is never searched, and the newest repair answers all the same.
+    const byPrice = await teamOf(await withConfig({ collection: 'repairs', nameField: 'price' })(request('?include=team&code=K7Q2')))
+    expect(byPrice.transactional).toEqual({ collection: 'repairs', status: 'ok', codeField: null, newest: { id: String(repair.id), createdAt: new Date(repair.createdAt).toISOString() } })
+    const missing = await teamOf(await withConfig({ collection: 'orders' })(request('?include=team')))
+    expect(missing.transactional).toEqual({ collection: 'orders', status: 'missing', codeField: null, newest: null })
+  })
+
+  it('team: a collection that cannot be read answers null or unreadable, the rest still answers, and the log has the details', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const problem = new Error('relation "repairs" does not exist (secret detail)')
+    const count = p.count.bind(p)
+    vi.spyOn(p, 'count').mockImplementation(((args: Parameters<Payload['count']>[0]) => (args.collection === 'repairs' ? Promise.reject(problem) : count(args))) as never)
+    const find = p.find.bind(p)
+    vi.spyOn(p, 'find').mockImplementation(((args: Parameters<Payload['find']>[0]) => (args.collection === 'bookings' ? Promise.reject(problem) : find(args))) as never)
+    const response = await answer(request('?include=team'))
+    const body = await response.clone().text()
+    const team = await teamOf(response)
+    expect(team.collections.find((collection) => collection.slug === 'repairs')?.count).toBeNull()
+    expect(team.collections.find((collection) => collection.slug === 'topics')?.count).toBe(0)
+    expect(team.transactional).toEqual({ collection: 'bookings', status: 'unreadable', codeField: null, newest: null })
+    expect(body.includes('secret detail')).toBe(false)
+    expect(log).toHaveBeenCalledWith('The course check could not count the collection repairs:', problem)
+    expect(log).toHaveBeenCalledWith('The course check could not read the collection bookings:', problem)
+  })
+
+  it('the route itself answers the team section from the app, with the starter config (bookings)', async () => {
+    const team = await teamOf(await route.GET(request('?include=team')))
+    expect(team.transactional.collection).toBe('bookings')
+    expect(team.transactional.status).toBe('ok')
+    const slugs = team.collections.map((collection) => collection.slug)
+    expect(slugs).toEqual(expect.arrayContaining(TEMPLATE_SLUGS))
+    for (const left of ['users', 'media', 'pages', 'throttle', 'members']) expect(slugs, left).not.toContain(left)
+    expect(team.manyToMany).toContainEqual({ from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' })
+  })
 })
 
 // The site after W5 and W6: the same route file, reading a config with the two new fields.
@@ -335,6 +433,26 @@ describe('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)',
       for (const secret of ['Mina', 'mina.peeters', '@', 'Back brake', `"id"`, String(booking.id), String(clinic.id)]) {
         expect(body.includes(secret), `${query}: ${secret}`).toBe(false)
       }
+    }
+  })
+
+  it("team: W6's many-to-many shows with its join, and the team section holds no name, e-mail address or note", async () => {
+    const clinic = await addClinic(p, 'Code BW-7F3K.', { whatToBring: [{ item: 'your bike' }] })
+    const booking = await addBooking(p, clinic.id as number, 'Mina Peeters BW-7F3K', { repairs: repairIds })
+    for (const query of ['?include=team&code=BW-7F3K', '?include=team']) {
+      const response = await courseCheckResponse(request(query), { payload: p })
+      const body = await response.clone().text()
+      const team = await teamOf(response)
+      expect(team.manyToMany, query).toEqual([
+        { from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' },
+        { from: 'bookings', field: 'repairs', to: 'repairs', join: 'bookings' },
+      ])
+      expect(team.collections.find((collection) => collection.slug === 'repairs')?.count, query).toBe(3)
+      expect(team.transactional.newest, query).toEqual({ id: String(booking.id), createdAt: new Date(booking.createdAt).toISOString() })
+      for (const secret of ['Mina', 'mina.peeters', '@', 'Back brake', 'Flat tyre', 'your bike']) {
+        expect(JSON.stringify(team).includes(secret), `${query}: ${secret}`).toBe(false)
+      }
+      expect(body.includes('mina.peeters'), query).toBe(false)
     }
   })
 })

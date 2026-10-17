@@ -3,14 +3,27 @@
 import { describe, expect, it } from 'vitest'
 import {
   answer,
+  clipName,
   containsToken,
   countRepairs,
+  findJoin,
   hasRepairsRelation,
   hasWhatToBringList,
+  isOwnCollection,
+  manyToManyLinks,
   MAX_ITEM_LENGTH,
   MAX_ITEMS,
+  MAX_MANY_TO_MANY,
+  MAX_NAME_LENGTH,
+  MAX_TEAM_COLLECTIONS,
+  newestRecord,
   readCode,
+  readInclude,
   readWhatToBring,
+  TEAM_SECTION_VERSION,
+  teamSection,
+  usableNameField,
+  type CollectionShape,
   type FieldShape,
 } from '@/lib/courseCheck'
 
@@ -172,5 +185,150 @@ describe('answer', () => {
   it('has exactly the three agreed keys', () => {
     expect(Object.keys(answer(true, ['your bike'], false))).toEqual(['clinic', 'whatToBring', 'booking'])
     expect(answer(false, null, false)).toEqual({ clinic: false, whatToBring: null, booking: false })
+  })
+})
+
+// The team section (?include=team), docs/COURSE-CHECK-CONTRACT.md, "The team section".
+describe('readInclude', () => {
+  it('asks for the team section only with include=team, in any letter case, with spaces around', () => {
+    for (const yes of ['team', 'TEAM', ' Team ']) expect(readInclude(yes), yes).toBe(true)
+    for (const no of [null, '', 'teams', 'team,all', 'all', '1']) expect(readInclude(no), String(no)).toBe(false)
+  })
+})
+
+describe('isOwnCollection', () => {
+  it("leaves out Payload's own collections, accounts, uploads, pages and the throttle", () => {
+    for (const slug of ['topics', 'workshops', 'clinics', 'timeSlots', 'bookings', 'repairs', 'events', 'tickets']) {
+      expect(isOwnCollection({ slug }), slug).toBe(true)
+    }
+    expect(isOwnCollection({ slug: 'users', auth: { tokenExpiration: 7200 } })).toBe(false)
+    expect(isOwnCollection({ slug: 'members', auth: {} })).toBe(false)
+    expect(isOwnCollection({ slug: 'volunteers', auth: true })).toBe(false)
+    expect(isOwnCollection({ slug: 'media', upload: { staticDir: 'media' } })).toBe(false)
+    expect(isOwnCollection({ slug: 'documents', upload: true })).toBe(false)
+    for (const slug of ['pages', 'throttle', 'payload-preferences', 'payload-migrations', 'payload-locked-documents', 'payload-kv']) {
+      expect(isOwnCollection({ slug }), slug).toBe(false)
+    }
+  })
+})
+
+describe('clipName', () => {
+  it('cuts to 64 characters, never splitting a character', () => {
+    expect(clipName('bookings')).toBe('bookings')
+    expect(clipName('x'.repeat(100))).toBe('x'.repeat(MAX_NAME_LENGTH))
+    const cut = clipName('a'.repeat(63) + '\u{1F6B2}')
+    expect(cut).toBe('a'.repeat(63))
+  })
+})
+
+const relation = (name: string, relationTo: unknown, hasMany: unknown = true): FieldShape => ({ name, type: 'relationship', relationTo, hasMany })
+const join = (name: string, collection: unknown, on: string): FieldShape => ({ name, type: 'join', collection, on })
+const coll = (slug: string, flattenedFields: FieldShape[]): CollectionShape => ({ slug, flattenedFields })
+
+describe('manyToManyLinks', () => {
+  it('lists every hasMany relationship, with the join on the other side or null', () => {
+    const collections = [
+      coll('workshops', [text('name'), relation('topics', 'topics')]),
+      coll('topics', [text('name'), join('workshops', 'workshops', 'topics')]),
+      coll('bookings', [relation('timeSlot', 'timeSlots', false), relation('repairs', 'repairs')]),
+      coll('repairs', [text('name')]),
+      coll('timeSlots', [join('bookings', 'bookings', 'timeSlot')]),
+    ]
+    expect(manyToManyLinks(collections)).toEqual([
+      { from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' },
+      { from: 'bookings', field: 'repairs', to: 'repairs', join: null },
+    ])
+  })
+
+  it('finds them inside named groups and tabs, by dotted path, and not inside lists', () => {
+    const collections = [
+      coll('events', [
+        { name: 'details', type: 'group', flattenedFields: [relation('speakers', 'speakers')] },
+        { name: 'more', type: 'tab', flattenedFields: [relation('sponsors', 'sponsors')] },
+        { name: 'rows', type: 'array', flattenedFields: [relation('guests', 'speakers')] },
+      ]),
+      coll('speakers', [{ name: 'about', type: 'group', flattenedFields: [join('events', 'events', 'details.speakers')] }]),
+      coll('sponsors', [join('events', 'events', 'speakers')]),
+    ]
+    expect(manyToManyLinks(collections)).toEqual([
+      { from: 'events', field: 'details.speakers', to: 'speakers', join: 'about.events' },
+      // The sponsors' join reads another field (`on: 'speakers'`), so it is not this link's other side.
+      { from: 'events', field: 'more.sponsors', to: 'sponsors', join: null },
+    ])
+  })
+
+  it('gives one link per collection of a relationship to several, and reads a join on several collections', () => {
+    const collections = [
+      coll('posts', [relation('tags', ['topics', 'places'])]),
+      coll('topics', [join('posts', ['posts', 'pages'], 'tags')]),
+      coll('places', []),
+    ]
+    expect(manyToManyLinks(collections)).toEqual([
+      { from: 'posts', field: 'tags', to: 'topics', join: 'posts' },
+      { from: 'posts', field: 'tags', to: 'places', join: null },
+    ])
+  })
+
+  it("leaves out Payload's own collections, and lists at most 30", () => {
+    expect(manyToManyLinks([coll('payload-locked-documents', [relation('document', 'topics')])])).toEqual([])
+    const many = Array.from({ length: 40 }, (_, i) => relation(`link${i}`, 'topics'))
+    expect(manyToManyLinks([coll('posts', many), coll('topics', [])])).toHaveLength(MAX_MANY_TO_MANY)
+  })
+
+  it('findJoin needs the same collection and the same field', () => {
+    const topics = coll('topics', [join('workshops', 'workshops', 'topics')])
+    expect(findJoin(topics, 'workshops', 'topics')).toBe('workshops')
+    expect(findJoin(topics, 'events', 'topics')).toBeNull()
+    expect(findJoin(topics, 'workshops', 'themes')).toBeNull()
+  })
+})
+
+describe('usableNameField', () => {
+  it('is the named field only when it is a top-level text, textarea or email field', () => {
+    const fields: FieldShape[] = [text('name'), { name: 'note', type: 'textarea' }, { name: 'email', type: 'email' }, { name: 'places', type: 'number' }]
+    expect(usableNameField(fields, 'name')).toBe('name')
+    expect(usableNameField(fields, 'note')).toBe('note')
+    expect(usableNameField(fields, 'email')).toBe('email')
+    expect(usableNameField(fields, 'places')).toBeNull()
+    expect(usableNameField(fields, 'title')).toBeNull()
+    expect(usableNameField(fields, undefined)).toBeNull()
+  })
+})
+
+describe('newestRecord', () => {
+  it('keeps only the id, as text, and the creation time', () => {
+    const doc = { id: 12, createdAt: '2026-10-18T09:12:44.120Z', name: 'Mina Peeters', email: 'mina@example.com' }
+    expect(newestRecord(doc)).toEqual({ id: '12', createdAt: '2026-10-18T09:12:44.120Z' })
+    expect(newestRecord({ id: 'abc', createdAt: new Date('2026-10-18T09:00:00Z') })).toEqual({ id: 'abc', createdAt: '2026-10-18T09:00:00.000Z' })
+    expect(newestRecord({ id: 3 })).toEqual({ id: '3', createdAt: null })
+    expect(newestRecord({ id: 3, createdAt: 'not a time' })).toEqual({ id: '3', createdAt: null })
+    expect(newestRecord({ id: 'x'.repeat(100) }).id).toHaveLength(MAX_NAME_LENGTH)
+  })
+})
+
+describe('teamSection', () => {
+  it('has exactly the agreed keys, version first, and nothing else a caller passes', () => {
+    const leaky = {
+      slug: 'bookings', count: 2, fromTemplate: true, name: 'Mina Peeters',
+    } as unknown as Parameters<typeof teamSection>[0][number]
+    const section = teamSection(
+      [leaky],
+      [{ from: 'bookings', field: 'repairs', to: 'repairs', join: 'bookings', email: 'mina@example.com' } as never],
+      { collection: 'bookings', status: 'ok', codeField: 'name', newest: { id: '7', createdAt: null, name: 'Mina' } as never, note: 'x' } as never,
+    )
+    expect(section).toEqual({
+      version: TEAM_SECTION_VERSION,
+      collections: [{ slug: 'bookings', count: 2, fromTemplate: true }],
+      manyToMany: [{ from: 'bookings', field: 'repairs', to: 'repairs', join: 'bookings' }],
+      transactional: { collection: 'bookings', status: 'ok', codeField: 'name', newest: { id: '7', createdAt: null } },
+    })
+    expect(Object.keys(section)).toEqual(['version', 'collections', 'manyToMany', 'transactional'])
+    expect(TEAM_SECTION_VERSION).toBe(1)
+  })
+
+  it('lists at most 30 collections', () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ slug: `c${i}`, count: 0, fromTemplate: false }))
+    const none = { collection: 'bookings', status: 'missing' as const, codeField: null, newest: null }
+    expect(teamSection(many, [], none).collections).toHaveLength(MAX_TEAM_COLLECTIONS)
   })
 })
