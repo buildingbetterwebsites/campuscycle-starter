@@ -29,8 +29,13 @@ function filesIn(folder: string, keep: (name: string) => boolean): string[] {
   })
 }
 
-// The three templates only a team fills in (a team's final hand-in reads them too).
-const TEAM_TEMPLATES = ['docs/team-agreement.md', 'docs/content-structure.md', 'docs/design-rationale.md']
+// The template as published (the maintainers' publish steps set STARTER_TEMPLATE=1), not a learner's copy.
+const TEMPLATE_MODE = process.env.STARTER_TEMPLATE === '1'
+
+// The three templates only a team fills in (a team's final hand-in reads them too). Their first line tells a
+// learner working alone to delete them, so in a learner's copy they count only while they exist.
+const ALL_TEAM_TEMPLATES = ['docs/team-agreement.md', 'docs/content-structure.md', 'docs/design-rationale.md']
+const TEAM_TEMPLATES = ALL_TEAM_TEMPLATES.filter((file) => TEMPLATE_MODE || exists(file))
 
 // The project document templates (docs/COURSE-CHECK-CONTRACT.md, "Project documents (final check)").
 const TEMPLATES = [
@@ -565,11 +570,13 @@ describe('the project document templates', () => {
     ],
   }
 
-  it.each(Object.entries(HEADINGS))('%s has the chapters\' section headings, in order', (file, headings) => {
+  const headingFiles = Object.entries(HEADINGS).filter(([file]) => !ALL_TEAM_TEMPLATES.includes(file) || TEAM_TEMPLATES.includes(file))
+  it.each(headingFiles)('%s has the chapters\' section headings, in order', (file, headings) => {
     expect(sectionsOf(read(file)).map(({ heading }) => heading)).toEqual(headings)
   })
 
-  it('the three team templates say on their first line that a learner working alone can delete them', () => {
+  // A team replaces that first line when it fills a template in, so this checks the template as published only.
+  it.runIf(TEMPLATE_MODE)('the three team templates say on their first line that a learner working alone can delete them', () => {
     for (const file of TEAM_TEMPLATES) {
       expect(read(file).split(/\r?\n/)[0], file).toBe('For teams; a learner working alone can delete this file.')
     }
