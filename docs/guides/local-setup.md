@@ -238,7 +238,9 @@ Connect Neon to Preview too:
 
 Neon's free plan allows only a limited number of branches. When a pull request is merged, its
 `preview/…` branch is no longer needed: in Neon, open **Branches**, click the branch's **⋮** menu,
-then **Delete**. Never delete your main branch: that is your live database.
+then **Delete**. Never delete your main branch: that is your live database. The starter can do this
+for you each time a pull request is closed: set it up once with the
+[integrations guide](integrations.md#preview-databases).
 
 ## Reset the preview database
 
