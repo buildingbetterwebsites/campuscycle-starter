@@ -117,6 +117,14 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     expect(await seen(await answer(request('?code=K7Q2')))).toEqual(ok(true, null, false))
   })
 
+  it("the course app's team code works the same way, and only as a whole token", async () => {
+    await addClinic(p, 'Codes T29-7G6NX and XT29-7G6N and T29-7G6N-2.')
+    expect(await seen(await answer(request('?code=T29-7G6N')))).toEqual(ok(false, null, false))
+    await addClinic(p, 'Team T29-7G6N, Saturday.')
+    expect(await seen(await answer(request('?code=T29-7G6N')))).toEqual(ok(true, null, false))
+    expect(await seen(await answer(request('?code=%20t29-7g6n%20')))).toEqual(ok(true, null, false))
+  })
+
   it('no clinic with the code: everything no', async () => {
     await addClinic(p, 'Saturday repair clinic. Code BW-7F3K.')
     expect(await seen(await answer(request('?code=BW-0000')))).toEqual(ok(false, null, false))
@@ -140,7 +148,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
   it('a code in any other form answers 400 with the agreed body, before reading the database', async () => {
     // Neither the clinics and bookings (find) nor the rate limit (count, create) are read.
     const reads = [vi.spyOn(p, 'find'), vi.spyOn(p, 'count'), vi.spyOn(p, 'create')]
-    for (const bad of ['%3Cb%3EK7Q2%3C%2Fb%3E', 'K7', 'K7Q2K7Q2K', 'K7%20Q2', 'x'.repeat(40), 'BW-7F3', 'BW_7F3K']) {
+    for (const bad of ['%3Cb%3EK7Q2%3C%2Fb%3E', 'K7', 'K7Q2K7Q2K', 'K7%20Q2', 'x'.repeat(40), 'BW-7F3', 'BW_7F3K', 'T29-7G6NX', 'T2-7G6N']) {
       expect(await seen(await answer(request(`?code=${bad}`))), bad).toEqual({ status: 400, type: 'application/json', cache: 'no-store', body: INVALID })
     }
     for (const read of reads) expect(read).not.toHaveBeenCalled()
@@ -278,6 +286,17 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     expect((await teamOf(await answer(request('?include=team&code=Z9Z9')))).transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: 'name', newest: null })
   })
 
+  it("team, with the course app's team code: the newest booking whose name holds it as a whole token", async () => {
+    const clinic = await addClinic(p, 'Code BW-7F3K.')
+    const mine = await addBooking(p, clinic.id, 'Team T29-7G6N, test booking')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    await addBooking(p, clinic.id, 'Team T29-7G6NX')
+    await addBooking(p, clinic.id, 'Team T29-7G6N-2')
+    const response = await answer(request('?include=team&code=t29-7g6n'))
+    expect(response.status).toBe(200)
+    expect((await teamOf(response)).transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: 'name', newest: { id: String(mine.id), createdAt: new Date(mine.createdAt).toISOString() } })
+  })
+
   it("team: reads the team's own config: another collection, a name field that is not text, a missing collection", async () => {
     const clinic = await addClinic(p, 'Code BW-7F3K.')
     const repair = await p.create({ collection: 'repairs', data: { name: 'Flat tyre K7Q2', price: 10 } })
@@ -388,6 +407,14 @@ describe('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)',
     // The reverse side W6 adds (repairs.bookings) shows the booking; the route itself never reads it.
     const repair = await p.findByID({ collection: 'repairs', id: repairIds[0], depth: 0 })
     expect((repair as unknown as { bookings: { docs: unknown[] } }).bookings.docs).toEqual([booking.id])
+  })
+
+  it("answers the same for the course app's team code, only as a whole token", async () => {
+    const clinic = await addClinic(p, 'Team T29-7G6N, Saturday.', { whatToBring: [{ item: 'your bike' }] })
+    await addBooking(p, clinic.id as number, 'Team T29-7G6NX', { repairs: repairIds.slice(0, 2) })
+    expect(await check('?code=T29-7G6N')).toEqual(ok(true, ['your bike'], false))
+    await addBooking(p, clinic.id as number, 'Team T29-7G6N', { repairs: repairIds.slice(0, 2) })
+    expect(await check('?code=t29-7g6n')).toEqual(ok(true, ['your bike'], true))
   })
 
   it('answers no for a booking with only one repair, or without the code in its name', async () => {

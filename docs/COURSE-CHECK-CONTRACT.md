@@ -35,13 +35,15 @@ Where the text below left a choice, the route does this:
 
 ### The code
 
-- It is accepted in either of two forms, in any letter case, with spaces around it trimmed:
+- It is accepted in any of three forms, in any letter case, with spaces around it trimmed:
   - the course app's personal code: `BW-` followed by 4 letters or digits (`^BW-[A-Z0-9]{4}$`, for example `BW-7F3K`);
-  - 4 to 8 letters and digits (`^[A-Z0-9]{4,8}$`, the original form, kept for team codes and tests).
+  - the course app's team code: `T`, the team's number in 2 to 4 digits, a hyphen and 4 letters or digits (`^T[0-9]{2,4}-[A-Z0-9]{4}$`, for example `T29-7G6N`);
+  - 4 to 8 letters and digits (`^[A-Z0-9]{4,8}$`, the original form, kept for tests).
 - Any other value answers **400**.
 - The code matches only as a **whole token**: the characters directly before and after it may not be letters, digits or a hyphen. Letter case is ignored.
   - `Saturday repair clinic. Code BW-7F3K.` matches `BW-7F3K`.
   - `BW-7F3KX` and `XBW-7F3K` do not.
+  - A team code follows the same rule: `Team T29-7G6N, test booking` matches `T29-7G6N`; `T29-7G6NX` and `T29-7G6N-2` do not.
 
 ### The answer
 
@@ -114,7 +116,7 @@ Status 200, `Content-Type: application/json`, `Cache-Control: no-store`. Without
 
 | Status | Body | When |
 | --- | --- | --- |
-| 400 | `{ "error": "invalid_code" }` | The code is not one of the two accepted forms |
+| 400 | `{ "error": "invalid_code" }` | The code is not one of the three accepted forms |
 | 429 | `{ "error": "rate_limited" }`, with a `Retry-After` header in seconds | More than **30 requests a minute** from one IP address |
 | 503 | `{ "error": "unavailable" }` | The database could not be read, for example while Neon wakes up from a pause. **Retry once after a few seconds.** |
 

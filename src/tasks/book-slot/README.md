@@ -75,6 +75,8 @@ Say your site sells seats for performances.
    the `data` in `payload.create` says which ones are saved. A field that is not in both is never saved.
    Change the collection names (`timeSlots`, `clinics`, `bookings`) and the messages to your words.
 3. **The page and the two components**: your labels and words ("Choose a time", "Book this slot").
+4. **In a team, `src/course-check.config.ts`**: the collection your task now saves into, and its
+   name field (see [How to adapt the two tasks](../../../docs/guides/ux-decisions.md#how-to-adapt-the-two-tasks)).
 
 These stay as they are, because they keep the task safe and honest for every user:
 

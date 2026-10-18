@@ -295,11 +295,12 @@ details are only in those logs, never in the answer.
 
 > {"error": "invalid_code"}
 
-**What it means:** the code in the address is not in a form the check accepts. It accepts two forms,
-in small or capital letters:
+**What it means:** the code in the address is not in a form the check accepts. It accepts three
+forms, in small or capital letters:
 
 - a personal code like `BW-7F3K`: `BW-`, then 4 letters or digits;
-- 4 to 8 letters or digits, with nothing else, like `K7Q2` (a form for team codes).
+- a team code like `T29-7G6N`: `T`, your team's number, a hyphen, then 4 letters or digits;
+- 4 to 8 letters or digits, with nothing else, like `K7Q2` (an older form, kept for tests).
 
 **What to do:** check the code in the address after `?code=`, letter by letter.
 

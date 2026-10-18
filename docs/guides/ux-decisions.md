@@ -241,3 +241,11 @@ into a task of your own site:
 
 Keep what makes each task work for every user: the plain form with visible labels, the honest
 messages, the made-up-data notice, and the tests.
+
+**In a team, also tell the course check about your transactional task.** When your own task replaces
+the booking example, fill in `src/course-check.config.ts`: `collection`, the collection your task
+saves into (its slug, as in its file in `src/collections`), and `nameField`, the text field that names
+a record, such as `name`. Put your team code (like `T29-7G6N`) in that field of a test record: the
+course's check looks for the newest record whose name holds the code. Until you fill it in, the check
+still looks at the bookings, and cannot see your own records land. A learner working alone can leave
+the file as it is.
