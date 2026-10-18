@@ -4,6 +4,10 @@ Campus Cycle is a small, complete website for a made-up bicycle repair service a
 the starter of the course "Building better websites": you make your own copy, put it online, and
 learn by changing it. Later you can turn your copy into a site about your own topic.
 
+**This is the version teams start from (autumn 2026).** It is tagged `course-2026-autumn`. Later
+changes to this template never reach a repository already made from it; the course gives those as
+copy-paste changes instead, like [the recipes](docs/guides/recipes.md).
+
 **What you get:**
 
 - **A live website with a CMS.** The editing screen is at `/admin`, part of the site itself. Editors
