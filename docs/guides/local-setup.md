@@ -94,27 +94,44 @@ until you press **Ctrl+C** there. You never need it; it can help when you stop a
 Your settings for your own computer go in a file called `.env.local`. It is never committed: the
 project's `.gitignore` leaves it out.
 
-1. Copy `.env.example` to `.env.local`. In the terminal:
-   - on macOS or Linux: `cp .env.example .env.local`
-   - on Windows (Command Prompt or PowerShell): `copy .env.example .env.local`
-2. Open `.env.local` in your editor and fill in:
-   - `PAYLOAD_SECRET=`: a random text of at least 32 characters (it may differ from your live
-     site's);
-   - `FIRST_ADMIN_EMAIL=` and `FIRST_ADMIN_PASSWORD=`: the admin account for your own computer's
-     `/admin` (it may differ from your live site's);
+1. Make the file: copy `.env.example` to `.env.local`. In VS Code's terminal (on Windows, macOS and
+   Linux alike):
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   (In the old Windows Command Prompt, type `copy` instead of `cp`.)
+
+2. Make a secret: a random text of 64 letters and digits, for `PAYLOAD_SECRET`. Run:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+   **You should see:** one line of 64 letters and digits. Select it and copy it. (Any random text of
+   at least 32 characters works; it may differ from your live site's.)
+3. Open `.env.local` in VS Code and fill in the four active lines, so that they look like this, with
+   your secret and a password of your own:
+
+   ```bash
+   PAYLOAD_SECRET=paste-the-64-letters-and-digits-here
+   FIRST_ADMIN_EMAIL=laptop-admin@example.com
+   FIRST_ADMIN_PASSWORD=a-password-you-use-nowhere-else
+   DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
+   ```
+
+   - `PAYLOAD_SECRET=`: paste the line from step 2 right after the `=`, with no space.
+   - `FIRST_ADMIN_EMAIL=` and `FIRST_ADMIN_PASSWORD=`: the admin account for `/admin` on your own
+     computer. `laptop-admin@example.com` is fine: no e-mail is ever sent to it. Both may differ from
+     your live site's.
    - `DATABASE_URL=`: only **remove the `#`** at the start of the line
      `# DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres`. The address is already
-     filled in: it is your laptop's database.
-3. Save the file.
+     filled in: it is your laptop's database. Never paste your live site's database address here.
+4. Save the file (**Ctrl+S**, on a Mac **Cmd+S**).
 
-The four lines then look like this (with your own values for the first three):
-
-```bash
-PAYLOAD_SECRET=a-long-random-text-of-at-least-32-characters
-FIRST_ADMIN_EMAIL=you@example.com
-FIRST_ADMIN_PASSWORD=a-password-you-use-nowhere-else
-DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
-```
+Leave every other line as it is: the lines that start with `#` are switched off, and that is what you
+want for now.
 
 ## Build the tables, add the example, start the site
 
