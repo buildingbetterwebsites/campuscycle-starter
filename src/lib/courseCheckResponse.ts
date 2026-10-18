@@ -1,6 +1,6 @@
 // What GET /api/course-check answers (src/app/api/course-check/route.ts), as agreed with the course's
 // checkers in docs/COURSE-CHECK-CONTRACT.md. The rules without the database are in courseCheck.ts.
-import { getPayload, type Payload, type Where } from 'payload'
+import { getPayload, type CollectionSlug, type Payload, type Where } from 'payload'
 import config from '@/payload.config'
 import { courseCheckConfig } from '@/course-check.config'
 import { allowRequest, clientKey } from '@/tasks/book-slot/guards'
@@ -35,6 +35,10 @@ const LIMIT = 30
 const WINDOW_MINUTES = 1
 // How many records each database read fetches at a time while looking for a match.
 const PAGE_SIZE = 50
+
+// The starter's two collections the warm-up checks read (W4-W6).
+const CLINICS = 'clinics' as CollectionSlug
+const BOOKINGS = 'bookings' as CollectionSlug
 
 // Every answer, the errors too: no browser, proxy or CDN may keep a copy, so each check reads the
 // site as it is at that moment.
@@ -93,10 +97,20 @@ export async function courseCheckResponse(
  * It reads with overrideAccess: true, because bookings are private (only editors may read them). That
  * is safe here: nothing of a booking leaves this function except a yes or no, and of a clinic only its
  * public "What to bring" list. answer() builds the body from exactly three keys.
+ *
+ * A site without the starter's clinics or bookings collection (a team that removed or renamed them for
+ * its own model) has no warm-up clinic or booking to find: it answers "no clinic, no list, no booking"
+ * (docs/COURSE-CHECK-CONTRACT.md), and the team section still answers from src/course-check.config.ts.
+ * The two collections are looked up by name, not through the generated types, so this file still
+ * compiles on such a site.
  */
 export async function findAnswer(payload: Payload, code: string | null): Promise<CourseCheckAnswer> {
-  const clinicFields = payload.collections.clinics.config.flattenedFields as readonly FieldShape[]
-  const bookingFields = payload.collections.bookings.config.flattenedFields as readonly FieldShape[]
+  const collections = payload.collections as Partial<Record<string, { config: { flattenedFields: unknown } }>>
+  const clinics = collections[CLINICS]
+  const bookings = collections[BOOKINGS]
+  if (!clinics || !bookings) return answer(false, null, false)
+  const clinicFields = clinics.config.flattenedFields as readonly FieldShape[]
+  const bookingFields = bookings.config.flattenedFields as readonly FieldShape[]
 
   const clinic = await newestClinic(payload, code)
   const booking = hasRepairsRelation(bookingFields) ? await bookingWithTwoRepairs(payload, code) : false
@@ -115,7 +129,7 @@ async function newestClinic(payload: Payload, code: string | null): Promise<Reco
   const where: Where = code === null ? {} : { summary: { like: code } }
   for (let page = 1; ; page++) {
     const result = await payload.find({
-      collection: 'clinics',
+      collection: CLINICS,
       where,
       select: select as never,
       sort: ['-updatedAt', '-id'],
@@ -145,7 +159,7 @@ async function bookingWithTwoRepairs(payload: Payload, code: string | null): Pro
   const where: Where = code === null ? {} : { name: { like: code } }
   for (let page = 1; ; page++) {
     const result = await payload.find({
-      collection: 'bookings',
+      collection: BOOKINGS,
       where,
       // The name to confirm the code, and the repairs' ids: nothing else of the booking is read.
       select: { name: true, repairs: true } as never,
