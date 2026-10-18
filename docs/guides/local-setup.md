@@ -192,6 +192,9 @@ matters:
 CI checks steps 2 and 4 for you: the `migrations` job fails when a migration is missing, and the
 `types-fresh` job when the generated files are out of date.
 
+Worked examples, to copy: [the recipes](recipes.md) (a new field, a new collection, a many-to-many,
+and making a migration again when `main` moved first).
+
 **Showing a new field on a page.** The clinic page (`src/app/(site)/clinics/[slug]/page.tsx`) has a
 line that marks where a list of the clinic's own goes, right under the clinic's summary:
 

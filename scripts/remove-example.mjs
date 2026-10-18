@@ -7,7 +7,7 @@
 //     and their part of the seed and of the browser checks (checks/checks.json);
 //   - W5's and W6's marked places (the clinic's price list and the repair choice): they need the repairs.
 // WHAT STAYS: Clinics, Time Slots, Bookings and the book-slot task (src/tasks/book-slot). Teams keep the
-// booking and rename it to their own topic (the recipes R5 and R10), which is far less work
+// booking and rename it to their own topic (docs/guides/recipes.md, R5 and R10), which is far less work
 // than writing a transactional task from nothing.
 //
 // HOW: the changes are one prepared patch (scripts/remove-example/remove-example.patch), made from the
