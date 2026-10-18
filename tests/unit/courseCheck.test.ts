@@ -38,6 +38,14 @@ describe('readCode', () => {
     expect(readCode('K7Q2K7Q2')).toEqual({ kind: 'code', code: 'K7Q2K7Q2' })
   })
 
+  it("accepts the course app's team code (T, the team's number, a hyphen and 4 letters or digits) in any case, with spaces around", () => {
+    expect(readCode('T29-7G6N')).toEqual({ kind: 'code', code: 'T29-7G6N' })
+    expect(readCode(' t07-4qxf ')).toEqual({ kind: 'code', code: 'T07-4QXF' })
+    // From team 100 on, the number has three digits.
+    expect(readCode('T100-ABCD')).toEqual({ kind: 'code', code: 'T100-ABCD' })
+    expect(readCode('T1234-ABCD')).toEqual({ kind: 'code', code: 'T1234-ABCD' })
+  })
+
   it('treats no code, an empty code and only spaces as "no code": the answer for the whole site', () => {
     for (const none of [null, '', '   ', '\t\n']) expect(readCode(none), JSON.stringify(none)).toEqual({ kind: 'none' })
   })
@@ -55,6 +63,18 @@ describe('readCode', () => {
       'BW-7F3K-2',
       '-K7Q2',
       'K7Q2.',
+      // Team codes: one digit, five digits, three or five characters after the hyphen, no T, another
+      // separator, or more after the code.
+      'T2-7G6N',
+      'T12345-7G6N',
+      'T29-7G6',
+      'T29-7G6NX',
+      '29-7G6N',
+      'T29_7G6N',
+      'T29 7G6N',
+      'T29-7G6N-2',
+      'XT29-7G6N',
+      'T2A-7G6N',
       // The long s: JavaScript capitalises it to S, but it is not one of the letters A to Z.
       'bw-7fſk',
       // The Kelvin sign looks like a K.
@@ -87,6 +107,17 @@ describe('containsToken', () => {
     expect(containsToken('Code 9K7Q2', 'K7Q2')).toBe(false)
     // A letter of another language is a letter too.
     expect(containsToken('Code éK7Q2', 'K7Q2')).toBe(false)
+  })
+
+  it('finds a team code only as a whole token too', () => {
+    expect(containsToken('Team T29-7G6N, test booking', 'T29-7G6N')).toBe(true)
+    expect(containsToken('© 2026 Campus Cycle · t29-7g6n', 'T29-7G6N')).toBe(true)
+    expect(containsToken('T29-7G6N', 'T29-7G6N')).toBe(true)
+    expect(containsToken('Team T29-7G6NX', 'T29-7G6N')).toBe(false)
+    expect(containsToken('Team XT29-7G6N', 'T29-7G6N')).toBe(false)
+    expect(containsToken('Team 1T29-7G6N', 'T29-7G6N')).toBe(false)
+    expect(containsToken('Team T29-7G6N-2', 'T29-7G6N')).toBe(false)
+    expect(containsToken('Team -T29-7G6N', 'T29-7G6N')).toBe(false)
   })
 
   it('finds it again after a near miss in the same text', () => {

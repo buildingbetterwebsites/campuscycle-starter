@@ -11,29 +11,32 @@
 export type CodeRequest =
   // No code (or only spaces): the answer for the site as a whole ("Check my work" for self-study).
   | { kind: 'none' }
-  // A code in one of the two accepted forms, in capitals.
+  // A code in one of the three accepted forms, in capitals.
   | { kind: 'code'; code: string }
   // Anything else: the route answers 400.
   | { kind: 'invalid' }
 
-// The course app's personal code (BW- and 4 letters or digits), and the older form of 4 to 8 letters
-// and digits, kept for team codes and tests. Only the letters A to Z count: the `i` flag without `u`
-// never lets a non-English letter (such as the long s, which JavaScript capitalises to S) pass as one.
+// The course app's personal code (BW- and 4 letters or digits); its team code (T, the team's number in
+// two to four digits, a hyphen and 4 letters or digits, such as T29-7G6N); and the older form of 4 to 8
+// letters and digits, kept for tests. Only the letters A to Z count: the `i` flag without `u` never
+// lets a non-English letter (such as the long s, which JavaScript capitalises to S) pass as one.
 const PERSONAL_CODE = /^BW-[A-Z0-9]{4}$/i
+const TEAM_CODE = /^T[0-9]{2,4}-[A-Z0-9]{4}$/i
 const SHORT_CODE = /^[A-Z0-9]{4,8}$/i
 
 /** Reads the `code` from the address: spaces around it are trimmed, and letter case is ignored. */
 export function readCode(raw: string | null): CodeRequest {
   const value = (raw ?? '').trim()
   if (value === '') return { kind: 'none' }
-  if (PERSONAL_CODE.test(value) || SHORT_CODE.test(value)) return { kind: 'code', code: value.toUpperCase() }
+  if (PERSONAL_CODE.test(value) || TEAM_CODE.test(value) || SHORT_CODE.test(value)) return { kind: 'code', code: value.toUpperCase() }
   return { kind: 'invalid' }
 }
 
 /**
  * Does `text` contain `code` as a whole token? The characters right before and after it may not be a
  * letter (in any language), a digit or a hyphen, so BW-7F3K is found in "Code BW-7F3K." but not in
- * "BW-7F3KX", "XBW-7F3K" or "BW-7F3K-2". Letter case is ignored.
+ * "BW-7F3KX", "XBW-7F3K" or "BW-7F3K-2" (and a team code such as T29-7G6N the same way). Letter case
+ * is ignored.
  *
  * `code` must come from readCode, so it holds only A to Z, 0 to 9 and hyphens.
  */
