@@ -68,7 +68,7 @@ In short (the [local set-up guide](docs/guides/local-setup.md) explains each ste
 | `src/app/(site)/globals.css` | The design tokens: every colour, font, size and space, in one place |
 | `src/migrations` | The migrations: every change to the database's tables, in order |
 | `scripts` | The build, the migration and seed runners, the guard that protects your live database, and the CI checks |
-| `docs/guides` | The guides: [first hour](docs/guides/first-hour.md), [local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md), [UX decisions](docs/guides/ux-decisions.md) |
+| `docs/guides` | The guides: [first hour](docs/guides/first-hour.md), [local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md), [UX decisions](docs/guides/ux-decisions.md), [integrations](docs/guides/integrations.md) |
 | `docs/brief.md`, `docs/requirements.md`, `docs/decisions`, `docs/test-report.md`, `docs/handover.md` | Your project documents, to fill in, with at least two decision records in `docs/decisions` |
 
 If you work in a team, you also fill in `docs/team-agreement.md`, `docs/content-structure.md` and `docs/design-rationale.md`.
@@ -129,6 +129,8 @@ deprecation warnings that are not about your code. `NODE_OPTIONS=--no-deprecatio
   Analytics) is built in. On the free Hobby plan it records page views only; the site's two events
   (`filter_used` and `booking_saved`) need a paid plan. To use another tool, add it inside `track()`
   in `src/lib/analytics.ts`; the comment at the top of that file shows how. Never send personal data.
+  The [integrations guide](docs/guides/integrations.md#vercel-web-analytics) shows both switches Vercel
+  needs, and how to check that page views arrive.
 
 ## Where to go next in the course
 
@@ -140,8 +142,9 @@ deprecation warnings that are not about your code. `NODE_OPTIONS=--no-deprecatio
 - "Finishing and handing over": handing your site to its next owner.
 
 And the guides: [first hour](docs/guides/first-hour.md),
-[local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md) and
-[UX decisions](docs/guides/ux-decisions.md).
+[local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md),
+[UX decisions](docs/guides/ux-decisions.md) and [integrations](docs/guides/integrations.md) (preview
+databases, Vercel Web Analytics, a provider's script).
 
 ## Rules that keep you safe
 

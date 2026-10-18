@@ -646,6 +646,28 @@ uploading an image in a preview's `/admin` fails with an error message (its exac
 **What to do:** nothing is broken; this is expected. Upload images on your own computer (they go to
 the project's `media` folder) or, after you merged, on your live site.
 
+<a id="branch-limit-reached"></a>
+
+## Preview fails within a second: Branch limit reached
+
+> One or more integration resources failed to provision for this deployment.
+
+> Branch limit reached. Upgrade your plan or delete unused branches.
+
+**Where you see it:** on the failed preview's page in Vercel (Deployments → the preview): the first
+message at the top, the second under **Provisioning Integrations**. There is no build log: the build
+never started.
+
+**What it means:** Neon could not make this preview's database branch. Its free plan allows 10
+branches per project, your live database's own branch included, and the `preview/…` branches of
+earlier pull requests are still there: Vercel deletes them only weeks later. Your live site is not
+affected.
+
+**What to do:** in Neon, open **Branches** and delete the `preview/…` branches of pull requests you
+already merged or closed (never your main branch), then redeploy the preview. Then set up the
+starter's clean-up, so it does not happen again. The
+[integrations guide](integrations.md#preview-databases) shows both.
+
 <a id="preview-live-database"></a>
 
 ## STOPPED: this preview is connected to your LIVE database

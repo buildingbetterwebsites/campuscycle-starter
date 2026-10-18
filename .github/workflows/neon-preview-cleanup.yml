@@ -1,0 +1,82 @@
+# Neon preview clean-up: when a pull request is closed (merged or not), this deletes the Neon branch
+# its preview used, `preview/<the pull request's branch>`. Vercel deletes such a branch only long after
+# (when the preview's last deployment is deleted), and Neon's free plan allows 10 branches per project,
+# your live database's own branch included. Without this clean-up, after about nine pull requests every
+# new preview fails within a second with "Branch limit reached".
+#
+# It needs two settings, set up once (docs/guides/integrations.md#preview-databases): on GitHub,
+# Settings → Secrets and variables → Actions, the secret NEON_API_KEY and the variable NEON_PROJECT_ID.
+# Until both are there, it skips itself and says so in its log: no red cross.
+#
+# It deletes only the branch named `preview/<the pull request's branch>`, and never Neon's default
+# branch (your live database).
+#
+# It never turns red: a merged pull request's run is shown on the merge commit on main, next to CI, and a
+# clean-up that could not reach Neon must not look like a broken main. When something goes wrong, its run
+# stays green with a warning that says what to check; Neon's Branches page shows what is left.
+name: Neon preview clean-up
+
+on:
+  pull_request:
+    types: [closed]
+
+# It only reads the repository; the deleting is done in Neon, with the Neon API key.
+permissions:
+  contents: read
+
+jobs:
+  delete-preview-branch:
+    runs-on: ubuntu-latest
+
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+      # The branch name goes in through a setting, never pasted into a command itself, so no branch name
+      # can run as a command here.
+      PREVIEW_BRANCH: preview/${{ github.event.pull_request.head.ref }}
+
+    steps:
+      # Finds the preview branch's id by its exact name. Skips (with a note, not an error) when the
+      # clean-up is not set up yet, or when the branch is already gone (deleted by hand, or never made).
+      - name: Find the preview branch
+        id: find
+        run: |
+          if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
+            echo "::notice title=Neon preview clean-up not set up::Skipped. Add the secret NEON_API_KEY and the variable NEON_PROJECT_ID (docs/guides/integrations.md#preview-databases)."
+            echo "delete=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          search=$(jq -rn --arg name "$PREVIEW_BRANCH" '$name | @uri')
+          branches=$(curl --silent --show-error --fail \
+            --header "Authorization: Bearer $NEON_API_KEY" \
+            --header "Accept: application/json" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches?search=$search&limit=10000") || {
+            echo "::warning title=Neon preview clean-up: Neon refused the request::Nothing was deleted. Check the secret NEON_API_KEY and the variable NEON_PROJECT_ID (docs/guides/integrations.md#preview-databases)."
+            echo "delete=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          id=$(echo "$branches" | jq -r --arg name "$PREVIEW_BRANCH" \
+            '[.branches[] | select(.name == $name and .default != true and .primary != true) | .id] | first // empty')
+          if [ -z "$id" ]; then
+            echo "Neon has no branch $PREVIEW_BRANCH (already deleted, or never made): nothing to clean up."
+            echo "delete=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! [[ "$id" =~ ^br-[a-z0-9-]+$ ]]; then
+            echo "::warning title=Neon preview clean-up: unexpected branch id::Nothing was deleted: Neon answered with a branch id this clean-up does not recognise."
+            echo "delete=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Found $PREVIEW_BRANCH ($id): deleting it."
+          echo "delete=true" >> "$GITHUB_OUTPUT"
+          echo "branch_id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Delete the preview branch
+        if: steps.find.outputs.delete == 'true'
+        # A failed delete shows as a warning on this step, never as a red run (see the top of this file).
+        continue-on-error: true
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch: ${{ steps.find.outputs.branch_id }}
+          api_key: ${{ secrets.NEON_API_KEY }}
