@@ -73,6 +73,33 @@ describe('checkAiNote', () => {
     expect(checkAiNote(withNote(`${HINT}\n${note}`)).ok).toBe(true)
   })
 
+  it("passes the description GitHub's Revert button writes, without an AI note", () => {
+    const bodies = [
+      'Reverts JanMoonsTMC/choir-rooms-site#12',
+      'Reverts buildingbetterwebsites/campuscycle-starter#3\n\nThe preview broke.',
+      '\r\nReverts team-29/rooms.site#140',
+    ]
+    for (const body of bodies) {
+      const result = checkAiNote(body)
+      expect(result.ok).toBe(true)
+      expect(result.message).toMatch(/^AI note: not needed\./)
+    }
+  })
+
+  it('takes nothing else for a revert', () => {
+    const bodies = [
+      'Reverts the footer change.',
+      'Reverts #12',
+      'This reverts JanMoonsTMC/choir-rooms-site#12',
+      `What and why\n\nReverts owner/repo#12\n\n${HEADING}\n\n`,
+    ]
+    for (const body of bodies) {
+      const result = checkAiNote(body)
+      expect(result.ok).toBe(false)
+      expect(result.message).not.toMatch(/not needed/)
+    }
+  })
+
   it('reads only its own section: text in the other sections does not count', () => {
     const body = TEMPLATE.replace('<!-- What does this change, and why?', 'No AI used.\n<!-- What does this change, and why?')
     expect(checkAiNote(body).ok).toBe(false)
