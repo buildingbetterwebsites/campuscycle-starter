@@ -68,7 +68,7 @@ In short (the [local set-up guide](docs/guides/local-setup.md) explains each ste
 | `src/app/(site)/globals.css` | The design tokens: every colour, font, size and space, in one place |
 | `src/migrations` | The migrations: every change to the database's tables, in order |
 | `scripts` | The build, the migration and seed runners, the guard that protects your live database, and the CI checks |
-| `docs/guides` | The guides: [first hour](docs/guides/first-hour.md), [local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md), [UX decisions](docs/guides/ux-decisions.md), [integrations](docs/guides/integrations.md) |
+| `docs/guides` | The guides: [first hour](docs/guides/first-hour.md), [local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md), [UX decisions](docs/guides/ux-decisions.md), [integrations](docs/guides/integrations.md), [recipes](docs/guides/recipes.md) |
 | `docs/brief.md`, `docs/requirements.md`, `docs/decisions`, `docs/test-report.md`, `docs/handover.md` | Your project documents, to fill in, with at least two decision records in `docs/decisions` |
 
 If you work in a team, you also fill in `docs/team-agreement.md`, `docs/content-structure.md` and `docs/design-rationale.md`.
@@ -144,8 +144,10 @@ deprecation warnings that are not about your code. `NODE_OPTIONS=--no-deprecatio
 
 And the guides: [first hour](docs/guides/first-hour.md),
 [local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md),
-[UX decisions](docs/guides/ux-decisions.md) and [integrations](docs/guides/integrations.md) (preview
-databases, Vercel Web Analytics, a provider's script).
+[UX decisions](docs/guides/ux-decisions.md), [integrations](docs/guides/integrations.md) (preview
+databases, Vercel Web Analytics, a provider's script) and [recipes](docs/guides/recipes.md)
+(copy-paste changes for a team's own site: remove the example, rename the site, a new field, page or
+collection, a filter, the booking under your own name, a map).
 
 ## Rules that keep you safe
 

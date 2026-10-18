@@ -445,4 +445,5 @@ The course app's **Check my work** looks at your live site.
   `npm run seed` refuse it, but `npm run build` and `npm start` do not.
 
 **Next:** working on your own computer, and how previews get their own database:
-[the local set-up guide](local-setup.md).
+[the local set-up guide](local-setup.md). In a team project, [the recipes](recipes.md) give the
+changes your own site needs, ready to copy.
