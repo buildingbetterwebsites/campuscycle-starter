@@ -2,8 +2,7 @@
 // changes and the guides do not.
 //   - Every message the starter prints when something is wrong has its own heading in
 //     docs/guides/troubleshooting.md, so a learner who sees one can look it up word for word.
-//   - Every link and picture in the README and the guides points at a file that exists. A missing
-//     screenshot is allowed only as a listed placeholder (docs/guides/img/PLACEHOLDERS.md).
+//   - Every link and picture in the README and the guides points at a file that exists.
 //   - Every anchor (#...) the code or a guide links to exists.
 //   - The guides quote the course's marker lines exactly as the code holds them: the course's chapters
 //     quote both, so they must never drift apart.
@@ -289,15 +288,6 @@ describe('docs/guides/troubleshooting.md', () => {
 // Links, pictures and anchors
 // ---------------------------------------------------------------------------------------------------
 
-const PLACEHOLDER_LIST = 'docs/guides/img/PLACEHOLDERS.md'
-const PLACEHOLDER = /^docs\/guides\/img\/first-hour-\d{2}\.png$/
-
-/** The placeholders PLACEHOLDERS.md lists, as paths from the repository's root. */
-function listedPlaceholders(): Set<string> {
-  if (!exists(PLACEHOLDER_LIST)) return new Set()
-  return new Set([...read(PLACEHOLDER_LIST).matchAll(/`(first-hour-\d{2}\.png)`/g)].map((match) => `docs/guides/img/${match[1]}`))
-}
-
 /** Every link and picture target in a Markdown file, outside code. */
 function targetsOf(markdown: string): string[] {
   const text = markdown.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '')
@@ -310,8 +300,6 @@ function targetsOf(markdown: string): string[] {
 const external = (target: string) => /^(https?:|mailto:)/.test(target)
 
 describe('links and pictures in the README and the guides', () => {
-  const placeholders = listedPlaceholders()
-
   it('the README and every guide exist', () => {
     for (const file of [
       'README.md',
@@ -319,36 +307,22 @@ describe('links and pictures in the README and the guides', () => {
       'docs/guides/local-setup.md',
       'docs/guides/troubleshooting.md',
       'docs/guides/ux-decisions.md',
-      PLACEHOLDER_LIST,
     ]) {
       expect(exists(file), file).toBe(true)
     }
   })
 
-  it('every relative link and picture points at a file that exists, or a listed placeholder', () => {
+  it('every relative link and picture points at a file that exists', () => {
     const broken: string[] = []
     for (const doc of DOCS.filter(exists)) {
       for (const target of targetsOf(read(doc))) {
         if (external(target) || target.startsWith('#')) continue
         const file = path.posix.normalize(path.posix.join(path.posix.dirname(doc), decodeURI(target.split('#')[0])))
         if (exists(file)) continue
-        if (PLACEHOLDER.test(file) && placeholders.has(file)) continue
         broken.push(`${doc}: ${target}`)
       }
     }
     expect(broken).toEqual([])
-  })
-
-  it('PLACEHOLDERS.md lists only screenshots that are still missing and still used', () => {
-    const used = new Set(
-      DOCS.filter(exists).flatMap((doc) =>
-        targetsOf(read(doc)).map((target) => path.posix.normalize(path.posix.join(path.posix.dirname(doc), target))),
-      ),
-    )
-    for (const file of placeholders) {
-      expect(exists(file), `${file} exists now: remove it from ${PLACEHOLDER_LIST}`).toBe(false)
-      expect(used.has(file), `${file} is listed but no guide shows it`).toBe(true)
-    }
   })
 
   it('every anchor a guide links to exists', () => {
