@@ -11,8 +11,11 @@ import { courseCheckResponse } from '../../src/lib/courseCheckResponse'
 import { allowRequest } from '../../src/tasks/book-slot/guards'
 import { afterW6Config, collections as fixtureCollections, type Shape } from '../fixtures/config-after-w6'
 import { getTestPayload } from '../setup/payload'
+import { EXAMPLE } from '../setup/example'
 
-const clean = ['bookings', 'timeSlots', 'clinics', 'repairs', 'throttle']
+// The repairs only while the site has them (tests/setup/example.ts): W6 links bookings to them, and
+// a copy without them (npm run remove-example) skips the after-W6 tests below.
+const clean = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.repairs ? ['repairs'] : []), 'throttle']
 const DAY = 24 * 60 * 60 * 1000
 
 // A different made-up address for every request unless a test means to share one, so the limit of
@@ -76,7 +79,9 @@ async function teamOf(response: Response): Promise<TeamSection> {
 
 // The template's six content collections, in the config's order: users, media, pages, throttle and
 // members are left out (src/lib/courseCheck.ts, isOwnCollection).
-const TEMPLATE_SLUGS = ['topics', 'workshops', 'clinics', 'timeSlots', 'bookings', 'repairs']
+const TEMPLATE_SLUGS = [...(EXAMPLE.workshops ? ['topics', 'workshops'] : []), 'clinics', 'timeSlots', 'bookings', ...(EXAMPLE.repairs ? ['repairs'] : [])]
+// The template's one many-to-many: workshops.topics, shown on the topics by the join `workshops`.
+const TEMPLATE_MANY_TO_MANY = EXAMPLE.workshops ? [{ from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' }] : []
 
 describe('the course check, before W5 and W6 (the app as it ships)', () => {
   // The app as the starter ships it, without W5's and W6's fields (tests/fixtures/config-after-w6.ts,
@@ -103,7 +108,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     expect((await fixtureCollections('shipped')).map((collection) => collection.slug)).toEqual(appSlugs)
     expect(fieldsOf(p, 'clinics').some((field) => field.name === 'whatToBring')).toBe(false)
     expect(fieldsOf(p, 'bookings').some((field) => field.name === 'repairs')).toBe(false)
-    expect((p.collections.repairs.config.flattenedFields as readonly FieldShape[]).some((field) => field.name === 'bookings')).toBe(false)
+    if (EXAMPLE.repairs) expect((p.collections.repairs.config.flattenedFields as readonly FieldShape[]).some((field) => field.name === 'bookings')).toBe(false)
   })
 
   it('a clinic whose summary holds the code: clinic yes, no list (before W5), no booking (before W6)', async () => {
@@ -258,8 +263,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
   it("team: the template's collections with their counts, its many-to-many, and no booking yet", async () => {
     const team = await teamOf(await answer(request('?include=team')))
     expect(team.collections).toEqual(TEMPLATE_SLUGS.map((slug) => ({ slug, count: 0, fromTemplate: true })))
-    // The template's one many-to-many: workshops.topics, shown on the topics by the join `workshops`.
-    expect(team.manyToMany).toEqual([{ from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' }])
+    expect(team.manyToMany).toEqual(TEMPLATE_MANY_TO_MANY)
     expect(team.transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: null, newest: null })
 
     const clinic = await addClinic(p, 'Code BW-7F3K.')
@@ -297,7 +301,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     expect((await teamOf(response)).transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: 'name', newest: { id: String(mine.id), createdAt: new Date(mine.createdAt).toISOString() } })
   })
 
-  it("team: reads the team's own config: another collection, a name field that is not text, a missing collection", async () => {
+  it.runIf(EXAMPLE.repairs)("team: reads the team's own config: another collection, a name field that is not text, a missing collection", async () => {
     const clinic = await addClinic(p, 'Code BW-7F3K.')
     const repair = await p.create({ collection: 'repairs', data: { name: 'Flat tyre K7Q2', price: 10 } })
     await addBooking(p, clinic.id, 'Mina K7Q2')
@@ -312,7 +316,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     expect(missing.transactional).toEqual({ collection: 'orders', status: 'missing', codeField: null, newest: null })
   })
 
-  it('team: a collection that cannot be read answers null or unreadable, the rest still answers, and the log has the details', async () => {
+  it.runIf(EXAMPLE.repairs && EXAMPLE.workshops)('team: a collection that cannot be read answers null or unreadable, the rest still answers, and the log has the details', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     const problem = new Error('relation "repairs" does not exist (secret detail)')
     const count = p.count.bind(p)
@@ -337,7 +341,7 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
     const slugs = team.collections.map((collection) => collection.slug)
     expect(slugs).toEqual(expect.arrayContaining(TEMPLATE_SLUGS))
     for (const left of ['users', 'media', 'pages', 'throttle', 'members']) expect(slugs, left).not.toContain(left)
-    expect(team.manyToMany).toContainEqual({ from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' })
+    for (const link of TEMPLATE_MANY_TO_MANY) expect(team.manyToMany).toContainEqual(link)
   })
 })
 
@@ -369,7 +373,7 @@ async function closeFixture(base: Payload, fixture: Payload | undefined, schema:
 
 const fieldsOf = (p: Payload, slug: 'clinics' | 'bookings') => p.collections[slug].config.flattenedFields as readonly FieldShape[]
 
-describe('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)', () => {
+describe.runIf(EXAMPLE.repairs && EXAMPLE.workshops)('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)', () => {
   const schema = 'course_check_after_w6'
   let base: Payload
   let p: Payload
@@ -484,7 +488,7 @@ describe('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)',
   })
 })
 
-describe('the course check with the two fields in another shape', () => {
+describe.runIf(EXAMPLE.repairs)('the course check with the two fields in another shape', () => {
   const schema = 'course_check_other_shape'
   let base: Payload
   let p: Payload

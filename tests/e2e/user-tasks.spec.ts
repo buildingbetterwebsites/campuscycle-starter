@@ -6,8 +6,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { runFixture } from './global-setup'
 import { BOOKING_CONFIRMATION, countBookings, MADE_UP_DATA_NOTICE, NOT_CONFIRMED, readFixture, useOwnAddress } from './helpers'
+import { EXAMPLE } from '../setup/example'
 
 test.describe('task 1: find a workshop by topic and level', () => {
+  // Only while the site has the example's workshop pages (tests/setup/example.ts).
+  test.skip(!EXAMPLE.workshops || !EXAMPLE.workshopPages, 'The example workshops were removed.')
   test('filter by topic and level, open a workshop, follow its topic to the other side, and come back to the same filters', async ({ page }) => {
     await page.goto('/workshops')
     await expect(page.getByRole('heading', { level: 1, name: 'Workshops' })).toBeVisible()

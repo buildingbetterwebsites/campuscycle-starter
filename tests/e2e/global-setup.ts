@@ -3,6 +3,7 @@
 // helpers.ts): Playwright passes settings made here on to the checks.
 import { execFileSync } from 'node:child_process'
 import { BASE_URL } from './helpers'
+import { EXAMPLE } from '../setup/example'
 
 export function runFixture(command: 'create' | 'remove' | 'break' | 'mend'): string {
   return execFileSync(process.execPath, ['--import', 'tsx', 'tests/e2e/fixture.ts', command], {
@@ -24,7 +25,7 @@ export default async function globalSetup() {
   // A site that has just started (or a database that was asleep) can take seconds to answer its first
   // request. Ask each kind of page once, allowing 15 seconds, so the checks themselves start warm.
   const { clinic } = JSON.parse(process.env.E2E_FIXTURE) as { clinic: { slug: string } }
-  for (const path of ['/', '/workshops', '/clinics', `/clinics/${clinic.slug}`]) {
+  for (const path of ['/', ...(EXAMPLE.workshopPages ? ['/workshops'] : []), '/clinics', `/clinics/${clinic.slug}`]) {
     const response = await fetch(new URL(path, BASE_URL), { signal: AbortSignal.timeout(15_000) })
     if (response.status >= 500) throw new Error(`${path} answered ${response.status} while warming up: is the site running at ${BASE_URL}?`)
   }

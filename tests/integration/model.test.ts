@@ -3,16 +3,19 @@ import type { PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 import { hasRepairsRelation, hasWhatToBringList, type FieldShape } from '../../src/lib/courseCheck'
 import { getTestPayload, resetCollections } from '../setup/payload'
+import { EXAMPLE } from '../setup/example'
 
 const fieldsOf = (p: Payload, slug: 'clinics' | 'bookings' | 'repairs') => p.collections[slug].config.flattenedFields as readonly FieldShape[]
 
 /** Which of the learners' own additions (W5's list, W6's relationship and its reverse side) the app has. */
 function learnerAdditions(p: Payload) {
-  const has = (slug: 'clinics' | 'bookings' | 'repairs', name: string) => fieldsOf(p, slug).some(f => f.name === name)
+  const has = (slug: 'clinics' | 'bookings' | 'repairs', name: string) => slug in p.collections && fieldsOf(p, slug).some(f => f.name === name)
   return { whatToBring: has('clinics', 'whatToBring'), repairs: has('bookings', 'repairs'), reverse: has('repairs', 'bookings') }
 }
 
-const collections = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages']
+// The example's workshops, topics and repairs only while the site has them (tests/setup/example.ts):
+// a copy without them (npm run remove-example) skips the tests about them.
+const collections = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.workshops ? ['workshops', 'topics'] : []), ...(EXAMPLE.repairs ? ['repairs'] : []), 'pages']
 export const workshopData = { title: 'Test workshop', slug: 'test-workshop', level: 'beginner' as const, day: 'Tuesday' as const, startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.' }
 export const clinicData = { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday' as const, startTime: '15:00', endTime: '17:00', summary: 'Test instance. Code K7Q2.' }
 
@@ -20,7 +23,7 @@ describe('the content model', () => {
   beforeEach(() => resetCollections(collections))
   afterAll(() => resetCollections(collections))
 
-  it('stores many-to-many membership once and reads both directions', async () => {
+  it.runIf(EXAMPLE.workshops)('stores many-to-many membership once and reads both directions', async () => {
     const p = await getTestPayload()
     const a = await p.create({ collection: 'topics', data: { name: 'Tyres', slug: 'tyres' } })
     const b = await p.create({ collection: 'topics', data: { name: 'Maintenance', slug: 'maintenance' } })
@@ -63,7 +66,7 @@ describe('the content model', () => {
     expect(learnerAdditions(await getTestPayload())).toEqual({ whatToBring: false, repairs: false, reverse: false })
   })
 
-  it('rejects invalid references, duplicate slugs and invalid numeric values', async () => {
+  it.runIf(EXAMPLE.workshops && EXAMPLE.repairs)('rejects invalid references, duplicate slugs and invalid numeric values', async () => {
     const p = await getTestPayload()
     await p.create({ collection: 'workshops', data: workshopData })
     await expect(p.create({ collection: 'workshops', data: workshopData })).rejects.toThrow()
@@ -78,11 +81,13 @@ describe('the content model', () => {
 
   it('requires explicit unlinking and does not delete a clinic or slot with dependent records', async () => {
     const p = await getTestPayload()
-    const topic = await p.create({ collection: 'topics', data: { name: 'Test', slug: 'test' } })
-    const workshop = await p.create({ collection: 'workshops', data: { ...workshopData, topics: [topic.id] } })
-    await expect(p.delete({ collection: 'topics', id: topic.id })).rejects.toThrow('This topic is still used by workshops (see its Workshops list). Remove it from each workshop, then delete the topic.')
-    await p.update({ collection: 'workshops', id: workshop.id, data: { topics: [] } })
-    await p.delete({ collection: 'topics', id: topic.id })
+    if (EXAMPLE.workshops) {
+      const topic = await p.create({ collection: 'topics', data: { name: 'Test', slug: 'test' } })
+      const workshop = await p.create({ collection: 'workshops', data: { ...workshopData, topics: [topic.id] } })
+      await expect(p.delete({ collection: 'topics', id: topic.id })).rejects.toThrow('This topic is still used by workshops (see its Workshops list). Remove it from each workshop, then delete the topic.')
+      await p.update({ collection: 'workshops', id: workshop.id, data: { topics: [] } })
+      await p.delete({ collection: 'topics', id: topic.id })
+    }
     const clinic = await p.create({ collection: 'clinics', data: clinicData })
     const slot = await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: '2026-10-10T13:00:00Z', places: 2 } })
     const booking = await p.create({ collection: 'bookings', data: { timeSlot: slot.id, name: 'Test', email: 'test@campuscycle.example' } })
@@ -109,7 +114,7 @@ describe('the content model', () => {
     await expect(p.update({ collection: 'timeSlots', id: slot.id, data: { clinic: 999999 } })).rejects.toThrow(/clinic no longer exists/)
   })
 
-  it('rejects a slug that is not lowercase letters, digits and hyphens, and explains a duplicate', async () => {
+  it.runIf(EXAMPLE.workshops)('rejects a slug that is not lowercase letters, digits and hyphens, and explains a duplicate', async () => {
     const p = await getTestPayload()
     for (const slug of ['Repair a puncture', 'repair_a_puncture', 'Repair-A-Puncture', '-repair', 'repair-', 'repair--a']) {
       await expect(p.create({ collection: 'topics', data: { name: 'Test', slug } })).rejects.toMatchObject({ data: { errors: [{ path: 'slug', message: 'Use only lowercase letters, digits and hyphens, for example repair-a-puncture.' }] } })
@@ -118,7 +123,7 @@ describe('the content model', () => {
     await expect(p.create({ collection: 'topics', data: { name: 'Test', slug: 'repair-a-puncture-2' } })).rejects.toThrow('Another record already uses this slug. Choose a different one.')
   })
 
-  it('explains a workshop image that no longer exists', async () => {
+  it.runIf(EXAMPLE.workshops)('explains a workshop image that no longer exists', async () => {
     const p = await getTestPayload()
     await expect(p.create({ collection: 'workshops', data: { ...workshopData, image: 999999 } })).rejects.toThrow('This image no longer exists. Choose another image.')
   })
@@ -162,7 +167,7 @@ describe('database restrictions without the hooks', () => {
     expect((await p.count({ collection: 'timeSlots' })).totalDocs).toBe(1)
   })
 
-  it('refuses to delete a topic that a workshop still links to (SQLSTATE 23503 or 23001)', async () => {
+  it.runIf(EXAMPLE.workshops)('refuses to delete a topic that a workshop still links to (SQLSTATE 23503 or 23001)', async () => {
     const p = await getTestPayload()
     const topic = await p.create({ collection: 'topics', data: { name: 'Test topic', slug: 'test-topic' } })
     const workshop = await p.create({ collection: 'workshops', data: { ...workshopData, topics: [topic.id] } })

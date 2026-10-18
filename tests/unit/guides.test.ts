@@ -13,6 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { inScope } from '../../scripts/ci/leftovers.mjs'
+import { EXAMPLE } from '../setup/example'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const read = (file: string) => readFileSync(path.join(root, file), 'utf8')
@@ -392,7 +393,9 @@ describe('the fixed wording shared with the course', () => {
     expect(firstHour).toContain(w4)
   })
 
-  it('the README and the local set-up guide quote the W5 line exactly as the clinic page holds it', () => {
+  // W5 and W6 are about the clinic's price list and repairs: a copy without the repairs
+  // (npm run remove-example) has no W5 or W6 place left, and these checks stand aside.
+  it.runIf(EXAMPLE.repairs)('the README and the local set-up guide quote the W5 line exactly as the clinic page holds it', () => {
     expect(w5).toBe(`{/* W5: show the clinic's "What to bring" list here, the same way this page shows its prices below. */}`)
     expect(readme).toContain(w5)
     expect(localSetup).toContain(w5)
@@ -403,13 +406,13 @@ describe('the fixed wording shared with the course', () => {
     for (const [file, text] of guides) {
       for (const line of text.split(/\r?\n/)) {
         if (/\/\/\s*W4\b/.test(line) && !line.includes(w4 ?? '?')) paraphrased.push(`${file}: ${line.trim()}`)
-        if (/\{\/\*\s*W5\b/.test(line) && !line.includes(w5 ?? '?')) paraphrased.push(`${file}: ${line.trim()}`)
+        if (w5 && /\{\/\*\s*W5\b/.test(line) && !line.includes(w5)) paraphrased.push(`${file}: ${line.trim()}`)
       }
     }
     expect(paraphrased).toEqual([])
   })
 
-  it("the README gives W6's steps in the same words as the book-slot README, RepairChoice first", () => {
+  it.runIf(EXAMPLE.repairs)("the README gives W6's steps in the same words as the book-slot README, RepairChoice first", () => {
     const bookSlot = read('src/tasks/book-slot/README.md')
     // Without the first step RepairChoice stays undefined, and the types and the tests fail.
     const steps = [

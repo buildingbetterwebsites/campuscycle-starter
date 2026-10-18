@@ -5,14 +5,18 @@ import sharp from 'sharp'
 import config from '../setup/config'
 import { getTestPayload, resetCollections } from '../setup/payload'
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
+import { EXAMPLE } from '../setup/example'
 
 // These tests delete every user: never on a real database.
 refuseUnlessThrowAwayTestDatabase()
 
 const editor = { collection: 'users', id: 1, email: 'editor@campuscycle.example' }
 const member = { collection: 'members', id: 2, email: 'member@campuscycle.example' }
-const publicCollections: CollectionSlug[] = ['pages', 'topics', 'workshops', 'clinics', 'timeSlots', 'repairs', 'media']
-const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages', 'throttle', 'users']
+// The example's topics, workshops and repairs only while the site has them (tests/setup/example.ts).
+const workshops = EXAMPLE.workshops ? ['topics', 'workshops'] : []
+const repairs = EXAMPLE.repairs ? ['repairs'] : []
+const publicCollections = ['pages', ...workshops, 'clinics', 'timeSlots', ...repairs, 'media'] as CollectionSlug[]
+const clean = ['bookings', 'timeSlots', 'clinics', ...workshops, ...repairs, 'pages', 'throttle', 'users']
 // The booking's private details used in these tests. None of them may ever reach a public reader.
 const PRIVATE_DATA = /Private Test Person|private@campuscycle|Private test note/
 
@@ -78,16 +82,21 @@ describe('collection access', () => {
     const p = await getTestPayload()
     const options = { overrideAccess: false, user: editor }
     const page = await p.create({ collection: 'pages', data: { title: 'Test page', slug: 'test-page' }, ...options })
-    const topic = await p.create({ collection: 'topics', data: { name: 'Test topic', slug: 'test-topic' }, ...options })
-    const workshop = await p.create({ collection: 'workshops', data: { title: 'Test workshop', slug: 'test-workshop', level: 'beginner', day: 'Tuesday', startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.', topics: [topic.id] }, ...options })
+    const examples: [CollectionSlug, number][] = []
+    if (EXAMPLE.workshops) {
+      const topic = await p.create({ collection: 'topics', data: { name: 'Test topic', slug: 'test-topic' }, ...options })
+      const workshop = await p.create({ collection: 'workshops', data: { title: 'Test workshop', slug: 'test-workshop', level: 'beginner', day: 'Tuesday', startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.', topics: [topic.id] }, ...options })
+      examples.push(['workshops', workshop.id], ['topics', topic.id])
+    }
+    if (EXAMPLE.repairs) examples.push(['repairs', (await p.create({ collection: 'repairs', data: { name: 'Test repair', price: 5 }, ...options })).id])
     const clinic = await p.create({ collection: 'clinics', data: { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday', startTime: '15:00', endTime: '17:00', summary: 'Test instance.' }, ...options })
     const slot = await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: '2026-10-10T13:00:00Z', places: 2 }, ...options })
-    const repair = await p.create({ collection: 'repairs', data: { name: 'Test repair', price: 5 }, ...options })
     // A second editor account, so deleting `user` below never removes the last one (that is refused).
     await p.create({ collection: 'users', data: { email: 'editor@campuscycle.example', password: 'test-password-0123456789' }, ...options })
     const user = await p.create({ collection: 'users', data: { email: 'test@campuscycle.example', password: 'test-password-0123456789' }, ...options })
     const booking = await p.create({ collection: 'bookings', data: { timeSlot: slot.id, name: 'Test Person', email: 'private@campuscycle.example' }, overrideAccess: true })
-    for (const [collection, id] of [['bookings', booking.id], ['timeSlots', slot.id], ['clinics', clinic.id], ['workshops', workshop.id], ['topics', topic.id], ['repairs', repair.id], ['pages', page.id], ['users', user.id]] as const) {
+    const all: [CollectionSlug, number][] = [['bookings', booking.id], ['timeSlots', slot.id], ['clinics', clinic.id], ...examples, ['pages', page.id], ['users', user.id]]
+    for (const [collection, id] of all) {
       expect((await p.findByID({ collection, id, ...options })).id).toBe(id)
       await expect(p.update({ collection, id, data: {}, ...options })).resolves.toHaveProperty('id', id)
       await expect(p.delete({ collection, id, ...options })).resolves.toHaveProperty('id', id)

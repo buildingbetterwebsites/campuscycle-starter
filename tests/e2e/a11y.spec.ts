@@ -4,15 +4,21 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { readFixture } from './helpers'
+import { EXAMPLE } from '../setup/example'
 
 // The test clinic's pages are known only once the global set-up has made it, so those two paths are
 // read inside the check (readFixture), not here.
 const pages = [
   { name: 'home', path: '/' },
-  { name: 'workshops', path: '/workshops' },
-  { name: 'workshops, filtered', path: '/workshops?topic=brakes-and-gears&level=beginner' },
-  { name: 'a workshop', path: '/workshops/adjust-your-brakes' },
-  { name: 'a topic', path: '/topics/brakes-and-gears' },
+  // The example's workshop pages, while the site has them (tests/setup/example.ts).
+  ...(EXAMPLE.workshopPages
+    ? [
+        { name: 'workshops', path: '/workshops' },
+        { name: 'workshops, filtered', path: '/workshops?topic=brakes-and-gears&level=beginner' },
+        { name: 'a workshop', path: '/workshops/adjust-your-brakes' },
+        { name: 'a topic', path: '/topics/brakes-and-gears' },
+      ]
+    : []),
   { name: 'clinics', path: '/clinics' },
   { name: 'the clinic', path: () => `/clinics/${readFixture().clinic.slug}` },
   { name: 'the confirmation', path: () => readFixture().confirmation },
@@ -53,7 +59,7 @@ test('page not found, without JavaScript: a 404, and today the empty page Next.j
   const context = await browser.newContext({ javaScriptEnabled: false })
   try {
     const page = await context.newPage()
-    for (const path of ['/no-such-page', '/workshops/no-such-workshop', '/a/b/c']) {
+    for (const path of ['/no-such-page', ...(EXAMPLE.workshopPages ? ['/workshops/no-such-workshop'] : []), '/a/b/c']) {
       expect((await page.goto(path))?.status(), path).toBe(404)
       expect(await page.locator('html').getAttribute('id'), path).toBe('__next_error__')
       expect((await page.locator('body').innerText()).trim(), path).toBe('')

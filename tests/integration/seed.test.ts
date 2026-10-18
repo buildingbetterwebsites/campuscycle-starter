@@ -7,12 +7,18 @@ import type { Payload } from 'payload'
 import { BOOKING_CONFIRMATION, CAMPUS_CYCLE, MADE_UP_DATA_NOTICE } from '../../src/content/campus-cycle'
 import { exampleWasAdded } from '../../src/seed/exampleFlag'
 import { runSeed } from '../../src/seed/run'
-import { NO_BLOB_STORE_MESSAGE, seed } from '../../src/seed/seed'
+import { NO_BLOB_STORE_MESSAGE, PAGES, seed } from '../../src/seed/seed'
+import { EXAMPLE } from '../setup/example'
 import { forgetExampleAdded, getTestPayload, resetCollections, resetSiteFacts } from '../setup/payload'
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
 
 // These tests delete every user and every example record: never on a real database.
 refuseUnlessThrowAwayTestDatabase()
+
+// This file tests the seed of the Campus Cycle example, with its workshops, topics and repairs. A copy
+// without them (npm run remove-example) has a smaller seed, and these tests stand aside
+// (tests/setup/example.ts). The fact sheet's own test runs only while the site is still Campus Cycle.
+const describeExample = describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs)
 
 // Children before parents: the database refuses to delete a parent that still has linked records.
 const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages', 'media', 'users']
@@ -82,7 +88,7 @@ async function bySlug<T extends 'pages' | 'workshops' | 'topics'>(p: Payload, co
   return found.docs[0]
 }
 
-describe('the Campus Cycle seed', () => {
+describeExample('the Campus Cycle seed', () => {
   beforeEach(resetAll)
   afterAll(resetAll)
 
@@ -190,7 +196,7 @@ describe('the Campus Cycle seed', () => {
     const p = await getTestPayload()
     await seed(p)
     const home = await bySlug(p, 'pages', 'home')
-    expect(home.title).toBe('Campus Cycle')
+    expect(home.title).toBe(PAGES.find((page) => page.slug === 'home')?.title)
     expect(home.intro).toBeTruthy()
     const privacy = html((await bySlug(p, 'pages', 'privacy')).body)
     expect(privacy).toContain(MADE_UP_DATA_NOTICE)
@@ -227,7 +233,7 @@ describe('the Campus Cycle seed', () => {
   })
 })
 
-describe('the seeded content agrees with the fact sheet', () => {
+describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the seeded content agrees with the fact sheet', () => {
   beforeEach(resetAll)
   afterAll(resetAll)
 
@@ -378,7 +384,7 @@ describe('the seeded content agrees with the fact sheet', () => {
   })
 })
 
-describe('Blob storage on Vercel', () => {
+describeExample('Blob storage on Vercel', () => {
   beforeEach(resetAll)
   afterAll(resetAll)
 
@@ -398,7 +404,7 @@ describe('Blob storage on Vercel', () => {
   })
 })
 
-describe('the images are found by their base name', () => {
+describeExample('the images are found by their base name', () => {
   beforeEach(resetAll)
   afterAll(resetAll)
 
@@ -416,7 +422,7 @@ describe('the images are found by their base name', () => {
   })
 })
 
-describe('runSeed: the example content is added once per database', () => {
+describeExample('runSeed: the example content is added once per database', () => {
   const originalEmail = process.env.FIRST_ADMIN_EMAIL
   const originalPassword = process.env.FIRST_ADMIN_PASSWORD
   let log: MockInstance<typeof console.log>

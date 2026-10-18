@@ -3,6 +3,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { SITE_NAME } from '../../src/content/campus-cycle'
+import { EXAMPLE } from '../setup/example'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const read = (file: string) => readFileSync(path.join(root, file), 'utf8')
@@ -63,7 +65,7 @@ describe("the site's name in the browser tab", () => {
   it('is written once: the layout adds it to every title, and no page writes it itself', () => {
     expect(read('src/app/(site)/layout.tsx')).toMatch(/^\s*title: SITE_TITLE,$/m)
     const files = [...pageFiles('src/app/(site)'), 'src/lib/pages.ts']
-    const named = files.filter((file) => /·\s*Campus Cycle/.test(read(file)))
+    const named = files.filter((file) => read(file).includes(`· ${SITE_NAME}`))
     expect(named, "give only the page's own title; the layout adds \" · \" and the name").toEqual([])
     // The "not found" page gets no title from the layout, so it adds the name from the same constant.
     expect(read('src/app/(site)/not-found.tsx')).toContain('<title>{`Page not found · ${SITE_NAME}`}</title>')
@@ -78,7 +80,9 @@ describe('the markers a course exercise points at', () => {
     expect(lines[marker + 1]).toMatch(/^const TAGLINE = '/)
   })
 
-  it('the clinic page keeps the W5 line where the summary is shown, and the price list above the booking form', () => {
+  // W5 and W6 are about the clinic's price list and repairs: a copy without the repairs
+  // (npm run remove-example) has neither, and these three stand aside (tests/setup/example.ts).
+  it.runIf(EXAMPLE.repairs)('the clinic page keeps the W5 line where the summary is shown, and the price list above the booking form', () => {
     const source = read('src/app/(site)/clinics/[slug]/page.tsx')
     const lines = source.split(/\r?\n/)
     // A learner adds their list on the line AFTER this comment; the comment and the summary stay.
@@ -100,7 +104,7 @@ describe('the markers a course exercise points at', () => {
     expect(source.indexOf('<BookingForm')).toBeGreaterThan(guard + prices.length)
   })
 
-  it('BookingForm.tsx keeps the W6 repair choice commented out, with the name only and the exact price comment on the label line', () => {
+  it.runIf(EXAMPLE.repairs)('BookingForm.tsx keeps the W6 repair choice commented out, with the name only and the exact price comment on the label line', () => {
     const source = read('src/components/site/BookingForm.tsx')
     const lines = source.split(/\r?\n/)
     // After W6 (a learner's copy): switched on as the README says, so the form shows the choice.
@@ -135,7 +139,7 @@ describe('the markers a course exercise points at', () => {
     expect(read('src/lib/format.ts')).toMatch(/^export function formatPrice\(/m)
   })
 
-  it('createBooking.ts keeps the W6 repairs line commented out, next to the whitelist', () => {
+  it.runIf(EXAMPLE.repairs)('createBooking.ts keeps the W6 repairs line commented out, next to the whitelist', () => {
     const source = read('src/tasks/book-slot/createBooking.ts')
     // After W6 (a learner's copy): both lines switched on, under the same W6 comment.
     if (/^\s*const repairs = formData\.getAll\('repairs'\)/m.test(source)) {
