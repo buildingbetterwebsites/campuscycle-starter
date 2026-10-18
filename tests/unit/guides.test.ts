@@ -320,11 +320,19 @@ describe('links and pictures in the README and the guides', () => {
         if (external(target) || target.startsWith('#')) continue
         const file = path.posix.normalize(path.posix.join(path.posix.dirname(doc), decodeURI(target.split('#')[0])))
         if (exists(file)) continue
+        if (removedExample(file)) continue
         broken.push(`${doc}: ${target}`)
       }
     }
     expect(broken).toEqual([])
   })
+
+  // The guides explain the whole example. Once npm run remove-example has taken out the workshops (and
+  // with them the find-a-workshop task and its README) and the repairs (W6), a link to those parts has
+  // nothing left to point at: those links are not counted as broken.
+  function removedExample(file: string): boolean {
+    return file.startsWith('src/tasks/find-workshop/') && !EXAMPLE.workshops
+  }
 
   it('every anchor a guide links to exists', () => {
     const broken: string[] = []
@@ -334,6 +342,7 @@ describe('links and pictures in the README and the guides', () => {
         const [file, anchor] = target.split('#')
         const markdownFile = file === '' ? doc : path.posix.normalize(path.posix.join(path.posix.dirname(doc), file))
         if (!markdownFile.endsWith('.md') || !exists(markdownFile)) continue
+        if (anchor === 'w6-let-the-user-choose-repairs' && !EXAMPLE.repairs) continue
         if (!anchorsOf(read(markdownFile)).has(anchor)) broken.push(`${doc}: ${target}`)
       }
     }

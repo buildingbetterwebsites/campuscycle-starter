@@ -40,8 +40,8 @@ const whatToBring: Record<Exclude<Shape, 'shipped'>, Field & { name: string }> =
 }
 
 const repairs: Record<Exclude<Shape, 'shipped'>, Field & { name: string }> = {
-  agreed: { name: 'repairs', type: 'relationship', relationTo: 'repairs', hasMany: true },
-  other: { name: 'repairs', type: 'relationship', relationTo: 'repairs', hasMany: false },
+  agreed: { name: 'repairs', type: 'relationship', relationTo: 'repairs' as never, hasMany: true },
+  other: { name: 'repairs', type: 'relationship', relationTo: 'repairs' as never, hasMany: false },
 }
 
 /** The collection without the learner's own field of that name (W5, W6), if it has one. */
@@ -70,19 +70,21 @@ function withField(collection: CollectionConfig, field: Field & { name: string }
  */
 export async function collections(shape: Shape): Promise<CollectionConfig[]> {
   vi.resetModules()
-  // The app's collections in the app's order, loaded only when their file is there: a copy without the
-  // example's workshops, topics and repairs (npm run remove-example) still gets its config, and the
-  // tests that need those collections stand aside (tests/setup/example.ts).
+  // The app's own collections, in the app's order: the names in payload.config.ts's `collections: [...]`,
+  // each from the file its import line names. So a copy without the example's workshops, topics and
+  // repairs (npm run remove-example), or with collections of its own, gets the same config, and the
+  // tests that need the example's collections stand aside (tests/setup/example.ts).
+  const files = new Map([...APP_CONFIG.matchAll(/^import \{ (\w+) \} from '\.\/collections\/(\w+)'/gm)].map(([, name, file]) => [name, file]))
+  const order = (/^\s*collections: \[([^\]]*)\]/m.exec(APP_CONFIG)?.[1] ?? '').split(',').map((name) => name.trim()).filter(Boolean)
   const load = async (name: string): Promise<CollectionConfig | null> => {
-    const file = COLLECTION_FILES[`/src/collections/${name}.ts`]
+    const file = COLLECTION_FILES[`/src/collections/${files.get(name) ?? name}.ts`]
     if (!file) return null
-    return ((await file()) as Record<string, CollectionConfig>)[name]
+    return ((await file()) as Record<string, CollectionConfig>)[name] ?? null
   }
-  const order = ['Users', 'Media', 'Pages', 'Topics', 'Workshops', 'Clinics', 'TimeSlots', 'Bookings', 'Repairs', 'Throttle', 'Members']
   const found: CollectionConfig[] = []
   for (const name of order) {
     const collection = await load(name)
-    if (!collection || !APP_CONFIG.includes(name)) continue
+    if (!collection) throw new Error(`The collection ${name} in src/payload.config.ts has no file in src/collections the test can load.`)
     if (name === 'Clinics') found.push(shape === 'shipped' ? without(collection, 'whatToBring') : withField(collection, whatToBring[shape], 'timeSlots'))
     else if (name === 'Bookings') found.push(shape === 'shipped' ? without(collection, 'repairs') : withField(collection, repairs[shape]))
     else if (name === 'Repairs') found.push(shape === 'shipped' ? without(collection, 'bookings') : withField(collection, { name: 'bookings', type: 'join', collection: 'bookings', on: 'repairs' }))

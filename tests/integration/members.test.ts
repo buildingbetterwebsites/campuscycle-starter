@@ -5,6 +5,7 @@
 // their own bookings, and a member is never an editor. Two members, A and B, check that one never sees
 // the other's bookings.
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleEndpoints, type Payload, type PayloadRequest } from 'payload'
@@ -51,6 +52,10 @@ import { membersAreaOn, NO_MATCH_MESSAGE, signedInMember } from '../../src/lib/m
 import { createBooking } from '../../src/tasks/book-slot/createBooking'
 import { bookingRef } from '../../src/tasks/book-slot/receipt'
 import { saveBooking } from '../../src/tasks/book-slot/saveBooking'
+
+// The menu's own links, counted in MainNav.tsx's LINKS list: five in the starter, one fewer without
+// the workshops (npm run remove-example), one more for each page a team adds to the menu.
+const MENU_LINKS = (/const LINKS = \[([\s\S]*?)\n\]/.exec(readFileSync('src/components/site/MainNav.tsx', 'utf8'))?.[1].match(/\{\s*href:/g) ?? []).length
 
 // These tests delete every member, booking, slot and clinic: never on a real database.
 refuseUnlessThrowAwayTestDatabase()
@@ -229,11 +234,11 @@ describe("the members' area", () => {
       expect(await digestOf(signIn(null, loginForm('a@campuscycle.example', PASSWORD)))).toBe('NEXT_HTTP_ERROR_FALLBACK;404')
       expect(await digestOf(signOut())).toBe('NEXT_HTTP_ERROR_FALLBACK;404')
 
-      // The menu is exactly the five links it always had.
+      // The menu is exactly the links it always had.
       const menu = renderToString(await Header())
       expect(menu).not.toContain('My bookings')
       expect(menu).not.toContain('/account')
-      expect(menu.match(/<li>/g)).toHaveLength(5)
+      expect(menu.match(/<li>/g)).toHaveLength(MENU_LINKS)
 
       const members = p.collections.members.config
       const hidden = members.admin.hidden as (args: { user: unknown }) => boolean
@@ -540,7 +545,7 @@ describe("the members' area", () => {
       // Nobody logged in: a sixth link that leads to the log-in page, and no sign of an account.
       const out = text(renderToString(await Header()))
       expect(out).toMatch(/<a[^>]*href="\/account\/login"[^>]*>Log in<\/a>/)
-      expect(out.match(/<li>/g)).toHaveLength(6)
+      expect(out.match(/<li>/g)).toHaveLength(MENU_LINKS + 1)
       expect(out).not.toContain('Log out')
       expect(out).not.toContain('My bookings')
 
@@ -548,7 +553,7 @@ describe("the members' area", () => {
       await digestOf(signIn(null, loginForm(a.email, PASSWORD)))
       const inside = text(renderToString(await Header()))
       expect(inside).toMatch(/<a[^>]*href="\/account"[^>]*>My bookings<\/a>/)
-      expect(inside.match(/<li>/g)).toHaveLength(6)
+      expect(inside.match(/<li>/g)).toHaveLength(MENU_LINKS + 1)
       expect(inside).toContain('Member A')
       expect(inside).toMatch(/<button[^>]*type="submit"[^>]*>Log out<\/button>/)
       // As tall as the menu's links (44 px, min-h-11), so it is as easy to hit on a phone.

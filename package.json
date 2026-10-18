@@ -15,6 +15,7 @@
     "migrate": "node scripts/guard.mjs migrate",
     "migrate:create": "node scripts/guard.mjs migrate:create",
     "seed": "node scripts/guard.mjs seed",
+    "remove-example": "node scripts/remove-example.mjs",
     "generate": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types && cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

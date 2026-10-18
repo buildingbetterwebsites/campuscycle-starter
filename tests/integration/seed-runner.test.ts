@@ -78,10 +78,11 @@ describe('the seed runner (scripts/seed.mjs)', () => {
     await resetSiteFacts()
     const first = await runRunner({ DATABASE_URL: process.env.TEST_DATABASE_URL, ...admin }, folder)
     expect(first.status, first.stderr).toBe(0)
-    expect(first.stdout.split(/\r?\n/)).toContain('SEED: created 21, kept 0')
+    expect(first.stdout.split(/\r?\n/)).toContain(EXAMPLE.workshops ? 'SEED: created 21, kept 0' : 'SEED: created 7, kept 0')
     expect(seedVerified(first)).toBe(true)
     // Its images went to the runner's own folder, not into the project.
-    expect(readdirSync(path.join(folder, 'media'))).toHaveLength(6)
+    // 6 photos with the example's workshops, 2 without them (npm run remove-example).
+    expect(readdirSync(path.join(folder, 'media'))).toHaveLength(EXAMPLE.workshops ? 6 : 2)
     const p = await getTestPayload()
     expect((await p.count({ collection: 'users' })).totalDocs).toBe(1)
 
@@ -95,7 +96,7 @@ describe('the seed runner (scripts/seed.mjs)', () => {
 
     // --again adds back only what is missing: here nothing.
     const again = await runRunner({ DATABASE_URL: process.env.TEST_DATABASE_URL, ...admin }, folder, undefined, ['--again'])
-    expect(again.stdout).toMatch(/SEED: created 0, kept 21 \(--again/)
+    expect(again.stdout).toMatch(EXAMPLE.workshops ? /SEED: created 0, kept 21 \(--again/ : /SEED: created 0, kept 7 \(--again/)
     expect(seedVerified(again)).toBe(true)
   }, 120_000)
 

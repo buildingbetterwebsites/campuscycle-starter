@@ -1,0 +1,3314 @@
+diff --git a/checks/checks.json b/checks/checks.json
+index d4d6428..4121095 100644
+--- a/checks/checks.json
++++ b/checks/checks.json
+@@ -73,58 +73,6 @@
+     {
+       "path": "/"
+     },
+-    {
+-      "path": "/workshops",
+-      "groups": [
+-        {
+-          "criterion": 3,
+-          "steps": [
+-            {
+-              "selector": "form :is(input, select, textarea):not([type=\"hidden\"], [type=\"submit\"], [type=\"button\"], [type=\"reset\"], [id], [aria-label], [aria-labelledby]):not(label *)",
+-              "count": 0
+-            },
+-            {
+-              "selector": "label[for=\"filter-topic\"]",
+-              "count": 1
+-            },
+-            {
+-              "selector": "label[for=\"filter-level\"]",
+-              "count": 1
+-            }
+-          ],
+-          "fix": "Give every form field a visible <label> whose for= matches the field's id, or put the field inside its <label>."
+-        }
+-      ]
+-    },
+-    {
+-      "path": "/workshops?topic=brakes-and-gears&level=beginner",
+-      "groups": [
+-        {
+-          "criterion": 3,
+-          "steps": [
+-            {
+-              "selector": "form :is(input, select, textarea):not([type=\"hidden\"], [type=\"submit\"], [type=\"button\"], [type=\"reset\"], [id], [aria-label], [aria-labelledby]):not(label *)",
+-              "count": 0
+-            },
+-            {
+-              "selector": "label[for=\"filter-topic\"]",
+-              "count": 1
+-            },
+-            {
+-              "selector": "label[for=\"filter-level\"]",
+-              "count": 1
+-            }
+-          ],
+-          "fix": "Give every form field a visible <label> whose for= matches the field's id, or put the field inside its <label>."
+-        }
+-      ]
+-    },
+-    {
+-      "path": "/workshops/adjust-your-brakes"
+-    },
+-    {
+-      "path": "/topics/brakes-and-gears"
+-    },
+     {
+       "path": "/clinics"
+     },
+diff --git a/src/app/(site)/clinics/[slug]/page.tsx b/src/app/(site)/clinics/[slug]/page.tsx
+index 0241e23..b46ea94 100644
+--- a/src/app/(site)/clinics/[slug]/page.tsx
++++ b/src/app/(site)/clinics/[slug]/page.tsx
+@@ -1,5 +1,5 @@
+-// One clinic's page, /clinics/<slug>: example task 2, "book a clinic slot". It shows the clinic, its
+-// prices, and the booking form with the time slots that have not started yet and their places left.
++// One clinic's page, /clinics/<slug>: example task 2, "book a clinic slot". It shows the clinic and
++// the booking form with the time slots that have not started yet and their places left.
+ // The checks and the save are in src/tasks/book-slot/ (see its README.md).
+ //
+ // Bookings are private: this page reads only HOW MANY bookings each slot has, never a name or an
+@@ -11,11 +11,10 @@ import { notFound } from 'next/navigation'
+ import { getPayload } from 'payload'
+ import { cache } from 'react'
+ import { BookingForm } from '@/components/site/BookingForm'
+-import { ButtonLink } from '@/components/site/ButtonLink'
+ import { Notice } from '@/components/site/Notice'
+ import { PageTitle } from '@/components/site/PageTitle'
+ import { ParentLink } from '@/components/site/ParentLink'
+-import { formatPrice, formatSlotTime, formatWhen, imageFrom } from '@/lib/format'
++import { formatSlotTime, formatWhen, imageFrom } from '@/lib/format'
+ import { membersAreaOn, signedInMember } from '@/lib/membersArea'
+ import config from '@/payload.config'
+ 
+@@ -81,8 +80,6 @@ export default async function ClinicPage({ params }: Props) {
+   }))
+   const allFull = slots.length > 0 && slots.every((slot) => slot.placesLeft === 0)
+ 
+-  // The price list: every repair record, in the order editors added them.
+-  const repairs = (await payload.find({ collection: 'repairs', sort: 'createdAt', depth: 0, limit: 50 })).docs
+   const picture = (await payload.find({ collection: 'media', where: { filename: { contains: CLINIC_IMAGE } }, limit: 1 })).docs[0]
+   // The place, from the Site facts global (src/globals/SiteFacts.ts).
+   const facts = await payload.findGlobal({ slug: 'site-facts', depth: 0 })
+@@ -123,28 +120,8 @@ export default async function ClinicPage({ params }: Props) {
+           <section aria-labelledby="about" className="grid gap-3">
+             <h2 id="about" className="text-2xl">About the clinic</h2>
+             <p className="max-w-(--container-reading)">{clinic.summary}</p>
+-            {/* W5: show the clinic's "What to bring" list here, the same way this page shows its prices below. */}
+           </section>
+ 
+-          {repairs.length > 0 && (
+-            <section aria-labelledby="prices" className="grid gap-3">
+-              <h2 id="prices" className="text-2xl">Prices</h2>
+-              {/* Each repair's name and price come from its own record, so a price changed in /admin is
+-                  right here at once. A description shows only when the record has one. */}
+-              <ul className="grid max-w-(--container-reading) divide-y divide-line border-y border-line">
+-                {repairs.map((repair) => (
+-                  <li key={repair.id} className="flex items-baseline justify-between gap-4 py-3">
+-                    <span className="grid">
+-                      <span className="font-semibold">{repair.name}</span>
+-                      {repair.description && <span className="text-ink-soft">{repair.description}</span>}
+-                    </span>
+-                    <span className="font-semibold whitespace-nowrap">{formatPrice(repair.price)}</span>
+-                  </li>
+-                ))}
+-              </ul>
+-            </section>
+-          )}
+-
+           <section aria-labelledby="book" className="framed grid gap-5 p-5 offset-coral sm:p-8">
+             <h2 id="book" className="text-2xl">Book a time slot</h2>
+             {slots.length === 0 ? (
+@@ -154,18 +131,15 @@ export default async function ClinicPage({ params }: Props) {
+             ) : allFull ? (
+               <Notice tone="warning" label="Fully booked">
+                 <p className="font-semibold">Every time slot is full.</p>
+-                <p>Check this page again later, or learn to do a repair yourself in a workshop.</p>
+-                <ButtonLink href="/workshops" variant="secondary" className="mt-2 w-fit">Find a workshop</ButtonLink>
++                <p>Check this page again later: a place frees up when someone cancels.</p>
+               </Notice>
+             ) : (
+               // The time slots are shown inside the form, by SlotPicker (src/components/site/SlotPicker.tsx).
+               // requestId: a new random code for each form, so the same form sent twice saves one booking.
+-              // repairs: only what the form needs (W6's repair choice) goes to the browser.
+               <BookingForm
+                 clinic={clinic.slug}
+                 slots={slots}
+                 requestId={randomUUID()}
+-                repairs={repairs.map(({ id, name, price }) => ({ id, name, price }))}
+                 member={member && { name: member.name ?? '', email: member.email }}
+               />
+             )}
+diff --git a/src/app/(site)/clinics/page.tsx b/src/app/(site)/clinics/page.tsx
+index ec5dbb3..d5bf6d2 100644
+--- a/src/app/(site)/clinics/page.tsx
++++ b/src/app/(site)/clinics/page.tsx
+@@ -38,8 +38,6 @@ export default async function ClinicsPage() {
+         <Notice tone="warning" label="Not open yet" className="max-w-3xl">
+           <p className="font-heading text-xl font-extrabold">The repair clinic opens soon</p>
+           <p>When it opens, you can book a time slot on this page and bring your bicycle for a check or a repair.</p>
+-          <p>Until then, you can learn to do it yourself in a workshop.</p>
+-          <ButtonLink href="/workshops" variant="secondary" className="mt-2 w-fit">Find a workshop</ButtonLink>
+         </Notice>
+       ) : (
+         <ul className="grid max-w-3xl gap-block">
+diff --git a/src/app/(site)/not-found.tsx b/src/app/(site)/not-found.tsx
+index 92c492c..5a941f2 100644
+--- a/src/app/(site)/not-found.tsx
++++ b/src/app/(site)/not-found.tsx
+@@ -1,5 +1,5 @@
+ // The "page not found" page (error 404): shown when an address has no page behind it, for example a
+-// mistyped link or a workshop that was removed. It says what happened in plain words and offers the
++// mistyped link or a record that was removed. It says what happened in plain words and offers the
+ // two most useful ways on, instead of leaving the user stuck.
+ import { ButtonLink } from '@/components/site/ButtonLink'
+ import { PageTitle } from '@/components/site/PageTitle'
+@@ -17,7 +17,7 @@ export default function NotFound() {
+       />
+       <div className="flex flex-wrap gap-3 px-6 sm:px-10 lg:px-14">
+         <ButtonLink href="/">Go to the home page</ButtonLink>
+-        <ButtonLink href="/workshops" variant="secondary">See the workshops</ButtonLink>
++        <ButtonLink href="/clinics" variant="secondary">See the repair clinic</ButtonLink>
+       </div>
+     </div>
+   )
+diff --git a/src/app/(site)/page.tsx b/src/app/(site)/page.tsx
+index a2a6219..fc45a24 100644
+--- a/src/app/(site)/page.tsx
++++ b/src/app/(site)/page.tsx
+@@ -1,16 +1,14 @@
+-// The home page. It shows the two things a user comes to do, kept apart so neither hides the other:
+-// find a workshop, or book the repair clinic. Everything on it comes from the records editors keep
+-// in /admin (the home page's title and intro, the workshops, the topics, the clinic, and the pricing
+-// rule in the Site facts global), never from a copy typed here, so a price changed in /admin is right
+-// on every page at once.
++// The home page. It shows what a user comes to do: book the repair clinic. Everything on it comes from
++// the records editors keep in /admin (the home page's title and intro, the clinic, and the pricing rule
++// in the Site facts global), never from a copy typed here, so a fact changed in /admin is right on
++// every page at once.
+ import { getPayload } from 'payload'
+ import { ButtonLink } from '@/components/site/ButtonLink'
+-import { FramedCard } from '@/components/site/FramedCard'
+ import { Hero } from '@/components/site/Hero'
+ import { Notice } from '@/components/site/Notice'
+ import { Badge } from '@/components/ui/badge'
+ import { SITE_NAME } from '@/content/campus-cycle'
+-import { formatPrice, formatWhen, imageFrom, levelLabel } from '@/lib/format'
++import { formatWhen, imageFrom } from '@/lib/format'
+ import config from '@/payload.config'
+ 
+ // Read the database on every visit, never once while the site is built: editors' changes then show
+@@ -26,8 +24,6 @@ export default async function HomePage() {
+   // One after the other, not all at once: simple to read, and quick enough for a page this small.
+   const home = (await payload.find({ collection: 'pages', where: { slug: { equals: 'home' } }, limit: 1 })).docs[0]
+   const picture = (await payload.find({ collection: 'media', where: { filename: { contains: HOME_IMAGE } }, limit: 1 })).docs[0]
+-  const workshops = (await payload.find({ collection: 'workshops', sort: 'createdAt', depth: 1, limit: 50 })).docs
+-  const topics = (await payload.find({ collection: 'topics', sort: 'name', depth: 0, limit: 50 })).docs
+   // The newest clinic: the one a user can book now.
+   const clinic = (await payload.find({ collection: 'clinics', sort: '-createdAt', depth: 0, limit: 1 })).docs[0]
+   // The facts several pages share, such as the pricing rule (src/globals/SiteFacts.ts).
+@@ -40,79 +36,29 @@ export default async function HomePage() {
+         text={home?.intro}
+         image={imageFrom(picture)}
+         actions={
+-          <>
+-            <ButtonLink href="/workshops" size="lg">Find a workshop</ButtonLink>
+-            <ButtonLink href={clinic ? `/clinics/${clinic.slug}` : '/clinics'} variant="secondary" size="lg">
+-              Repair clinic
+-            </ButtonLink>
+-          </>
++          <ButtonLink href={clinic ? `/clinics/${clinic.slug}` : '/clinics'} size="lg">
++            Repair clinic
++          </ButtonLink>
+         }
+       />
+ 
+-      <section aria-labelledby="choose" className="grid gap-block">
+-        <h2 id="choose" className="text-2xl">What would you like to do?</h2>
+-        <div className="grid gap-block md:grid-cols-2">
+-          <div className="framed grid content-start gap-4 p-6 offset-purple sm:p-8">
+-            <Badge tone="purple">Learn it yourself</Badge>
+-            <h3 className="text-xl">Find a workshop</h3>
+-            <p>Short maintenance workshops in small groups. Choose a topic:</p>
+-            <ul className="flex flex-wrap gap-2">
+-              {topics.map((topic) => (
+-                <li key={topic.id}>
+-                  {/* min-h-11: 44 px high, a target a finger can hit easily. */}
+-                  <ButtonLink href={`/workshops?topic=${topic.slug}`} variant="secondary" size="sm" className="min-h-11">
+-                    {topic.name}
+-                  </ButtonLink>
+-                </li>
+-              ))}
+-            </ul>
+-            <ButtonLink href="/workshops" className="w-fit">See all workshops</ButtonLink>
+-          </div>
+-          <div className="framed grid content-start gap-4 p-6 offset-coral sm:p-8">
+-            <Badge tone="coral">Let us fix it</Badge>
+-            <h3 className="text-xl">Repair clinic</h3>
+-            {clinic ? (
+-              <>
+-                <p className="font-semibold">{clinic.name} · {formatWhen(clinic)}</p>
+-                <p>{clinic.summary}</p>
+-                <ButtonLink href={`/clinics/${clinic.slug}`} className="w-fit">Book a time slot</ButtonLink>
+-              </>
+-            ) : (
+-              <>
+-                <p className="font-semibold">The repair clinic opens soon</p>
+-                <p>When it opens, you can book a time slot here and bring your bicycle for a check or a repair.</p>
+-              </>
+-            )}
+-          </div>
++      <section aria-labelledby="clinic" className="grid gap-block">
++        <div className="framed grid content-start gap-4 p-6 offset-coral sm:p-8">
++          <Badge tone="coral">Let us fix it</Badge>
++          <h2 id="clinic" className="text-2xl">Repair clinic</h2>
++          {clinic ? (
++            <>
++              <p className="font-semibold">{clinic.name} · {formatWhen(clinic)}</p>
++              <p>{clinic.summary}</p>
++              <ButtonLink href={`/clinics/${clinic.slug}`} className="w-fit">Book a time slot</ButtonLink>
++            </>
++          ) : (
++            <>
++              <p className="font-semibold">The repair clinic opens soon</p>
++              <p>When it opens, you can book a time slot here and bring your bicycle for a check or a repair.</p>
++            </>
++          )}
+         </div>
+-      </section>
+-
+-      <section aria-labelledby="workshops" className="grid gap-block">
+-        <div className="flex flex-wrap items-baseline justify-between gap-3">
+-          <h2 id="workshops" className="text-2xl">The workshops</h2>
+-          <ButtonLink href="/workshops" variant="link">All workshops and topics</ButtonLink>
+-        </div>
+-        {/* One colour for every workshop card: purple means workshops, coral means the clinic. */}
+-        <ul className="grid gap-block lg:grid-cols-2">
+-          {workshops.map((workshop) => (
+-            <li key={workshop.id} className="grid">
+-              <FramedCard
+-                title={workshop.title}
+-                href={`/workshops/${workshop.slug}`}
+-                image={imageFrom(workshop.image)}
+-                accent="purple"
+-              >
+-                <Badge tone={workshop.level === 'beginner' ? 'mint' : 'yellow'}>{levelLabel(workshop.level)}</Badge>
+-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+-                  <dt className="text-ink-soft">When</dt>
+-                  <dd className="font-semibold">{formatWhen(workshop)}</dd>
+-                  <dt className="text-ink-soft">Price</dt>
+-                  <dd className="font-semibold">{formatPrice(workshop.price)}</dd>
+-                </dl>
+-              </FramedCard>
+-            </li>
+-          ))}
+-        </ul>
+         {facts.pricingRule && (
+           <Notice>
+             <p>{facts.pricingRule}</p>
+diff --git a/src/app/(site)/topics/[slug]/page.tsx b/src/app/(site)/topics/[slug]/page.tsx
+deleted file mode 100644
+index fdf90a8..0000000
+--- a/src/app/(site)/topics/[slug]/page.tsx
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// One topic's page, /topics/<slug>: its name, its description and the workshops that cover it.
+-// The list comes from the topic's "workshops" field, the reverse side of each workshop's "topics"
+-// (src/collections/Topics.ts): the same links, read from the other end.
+-import type { Metadata } from 'next'
+-import { notFound } from 'next/navigation'
+-import { getPayload } from 'payload'
+-import { cache } from 'react'
+-import { ButtonLink } from '@/components/site/ButtonLink'
+-import { PageTitle } from '@/components/site/PageTitle'
+-import { ParentLink } from '@/components/site/ParentLink'
+-import { WorkshopCard } from '@/components/site/WorkshopCard'
+-import config from '@/payload.config'
+-
+-export const dynamic = 'force-dynamic'
+-
+-type Props = { params: Promise<{ slug: string }> }
+-
+-// cache(): the page and its browser-tab title ask for the same records once per visit.
+-const findTopic = cache(async (slug: string) => {
+-  const payload = await getPayload({ config })
+-  const topic = (
+-    await payload.find({
+-      collection: 'topics',
+-      where: { slug: { equals: slug } },
+-      depth: 0,
+-      joins: { workshops: { sort: 'createdAt', limit: 100 } },
+-      limit: 1,
+-    })
+-  ).docs[0]
+-  if (!topic) return undefined
+-  // The join gives the links: which workshops cover this topic, in order. It does not bring each
+-  // workshop's picture and other topics with it, so a second question fetches those for the cards,
+-  // the same way the workshop list does.
+-  const ids = (topic.workshops?.docs ?? []).map((workshop) => (typeof workshop === 'object' ? workshop.id : workshop))
+-  const found = ids.length
+-    ? (
+-        await payload.find({
+-          collection: 'workshops',
+-          where: { id: { in: ids } },
+-          // depth 1 fetches each workshop's image and topics with it; of a topic, only its name and slug.
+-          depth: 1,
+-          populate: { topics: { name: true, slug: true } },
+-          limit: ids.length,
+-        })
+-      ).docs
+-    : []
+-  // Back in the join's order (the second question does not keep it).
+-  const workshops = ids.flatMap((id) => found.filter((workshop) => workshop.id === id))
+-  return { topic, workshops }
+-})
+-
+-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+-  const topic = (await findTopic((await params).slug))?.topic
+-  if (!topic) return {}
+-  return { title: `${topic.name} · Workshops`, description: topic.description ?? undefined }
+-}
+-
+-export default async function TopicPage({ params }: Props) {
+-  const found = await findTopic((await params).slug)
+-  if (!found) notFound()
+-  const { topic, workshops } = found
+-
+-  return (
+-    <div className="pb-6">
+-      <ParentLink href="/workshops" label="Workshops" current={topic.name} />
+-      <PageTitle title={topic.name} intro={topic.description} tone="purple" className="mt-3 sm:mt-4" />
+-      <section aria-labelledby="topic-workshops" className="grid gap-block">
+-        <div className="flex flex-wrap items-baseline justify-between gap-3">
+-          <h2 id="topic-workshops" className="text-2xl">
+-            {workshops.length === 0
+-              ? 'No workshop covers this topic yet'
+-              : `Workshops about ${topic.name} — ${workshops.length} ${workshops.length === 1 ? 'workshop' : 'workshops'}`}
+-          </h2>
+-          <ButtonLink href={`/workshops?topic=${topic.slug}`} variant="link">
+-            Filter the workshop list by this topic
+-          </ButtonLink>
+-        </div>
+-        {workshops.length > 0 && (
+-          <ul className="grid gap-block lg:grid-cols-2">
+-            {workshops.map((workshop) => (
+-              <li key={workshop.id} className="grid">
+-                <WorkshopCard workshop={workshop} />
+-              </li>
+-            ))}
+-          </ul>
+-        )}
+-      </section>
+-    </div>
+-  )
+-}
+diff --git a/src/app/(site)/workshops/[slug]/page.tsx b/src/app/(site)/workshops/[slug]/page.tsx
+deleted file mode 100644
+index 658ac79..0000000
+--- a/src/app/(site)/workshops/[slug]/page.tsx
++++ /dev/null
+@@ -1,115 +0,0 @@
+-// One workshop's page, /workshops/<slug>. Every fact on it comes from where it is kept once: the level,
+-// day, times, price and group size from the workshop's own record; the pricing rule and the place from
+-// the Site facts global. The description is only words about what you learn, so changing a price or
+-// a time in /admin never leaves an old copy behind in a text.
+-//
+-// When the user came from a filtered list, the address carries the filters
+-// (/workshops/true-a-wheel?topic=tyres-and-wheels), so "Back" returns to that same list. No JavaScript
+-// and no browser history are needed for that.
+-import { RichText } from '@payloadcms/richtext-lexical/react'
+-import type { Metadata } from 'next'
+-import { notFound } from 'next/navigation'
+-import { getPayload } from 'payload'
+-import { cache } from 'react'
+-import { ButtonLink } from '@/components/site/ButtonLink'
+-import { Notice } from '@/components/site/Notice'
+-import { PageTitle } from '@/components/site/PageTitle'
+-import { ParentLink } from '@/components/site/ParentLink'
+-import { TopicList } from '@/components/site/TopicList'
+-import { Badge } from '@/components/ui/badge'
+-import { formatPrice, formatWhen, imageFrom, levelLabel } from '@/lib/format'
+-import config from '@/payload.config'
+-import { filterQuery, parseFilters, type SearchParams } from '@/tasks/find-workshop/filters'
+-
+-export const dynamic = 'force-dynamic'
+-
+-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SearchParams> }
+-
+-// cache(): the page and its browser-tab title ask for the same record once per visit.
+-const findWorkshop = cache(async (slug: string) => {
+-  const payload = await getPayload({ config })
+-  const found = await payload.find({
+-    collection: 'workshops',
+-    where: { slug: { equals: slug } },
+-    // depth 1 fetches the image and the topics with it; of a topic, only its name and slug.
+-    depth: 1,
+-    populate: { topics: { name: true, slug: true } },
+-    limit: 1,
+-  })
+-  return found.docs[0]
+-})
+-
+-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+-  const workshop = await findWorkshop((await params).slug)
+-  if (!workshop) return {}
+-  return { title: workshop.title, description: workshop.summary }
+-}
+-
+-export default async function WorkshopPage({ params, searchParams }: Props) {
+-  const workshop = await findWorkshop((await params).slug)
+-  // No workshop with this slug: the "not found" page, which explains and offers a way on.
+-  if (!workshop) notFound()
+-  const filters = parseFilters(await searchParams)
+-  const back = `/workshops${filterQuery(filters)}`
+-  const payload = await getPayload({ config })
+-  const facts = await payload.findGlobal({ slug: 'site-facts', depth: 0 })
+-
+-  return (
+-    <article className="pb-6">
+-      <ParentLink href={back} label="Workshops" current={workshop.title} />
+-      <PageTitle
+-        title={workshop.title}
+-        intro={workshop.summary}
+-        tone="purple"
+-        image={imageFrom(workshop.image)}
+-        imageAccent="purple"
+-        className="mt-3 sm:mt-4"
+-      >
+-        <Badge tone={workshop.level === 'beginner' ? 'mint' : 'yellow'}>{levelLabel(workshop.level)}</Badge>
+-      </PageTitle>
+-
+-      <div className="grid gap-block lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+-        {/* First in the page (a phone shows it first), on the right on wide screens. */}
+-        <section aria-labelledby="facts" className="framed grid gap-4 p-6 offset-purple lg:col-start-2 lg:row-start-1">
+-          <h2 id="facts" className="text-xl">At a glance</h2>
+-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
+-            <dt className="text-ink-soft">Level</dt>
+-            <dd className="font-semibold">{levelLabel(workshop.level)}</dd>
+-            <dt className="text-ink-soft">When</dt>
+-            <dd className="font-semibold">{formatWhen(workshop)}</dd>
+-            <dt className="text-ink-soft">Price</dt>
+-            <dd className="font-semibold">{formatPrice(workshop.price)}</dd>
+-            <dt className="text-ink-soft">Group size</dt>
+-            <dd className="font-semibold">{`At most ${workshop.groupSize} people`}</dd>
+-            {facts.place && (
+-              <>
+-                <dt className="text-ink-soft">Place</dt>
+-                <dd className="min-w-0 font-semibold [overflow-wrap:anywhere]">{facts.place}</dd>
+-              </>
+-            )}
+-          </dl>
+-          {facts.pricingRule && (
+-            <Notice>
+-              <p>{facts.pricingRule}</p>
+-            </Notice>
+-          )}
+-        </section>
+-
+-        <div className="grid content-start gap-block lg:col-start-1 lg:row-start-1">
+-          {workshop.description && (
+-            <section aria-labelledby="learn" className="grid gap-3">
+-              <h2 id="learn" className="text-2xl">What you learn</h2>
+-              <div className="rich-text">
+-                <RichText data={workshop.description} disableContainer />
+-              </div>
+-            </section>
+-          )}
+-          <TopicList topics={workshop.topics} />
+-          <ButtonLink href={back} variant="secondary" className="w-fit">
+-            {filters.topic || filters.level ? 'Back to the filtered workshops' : 'Back to all workshops'}
+-          </ButtonLink>
+-        </div>
+-      </div>
+-    </article>
+-  )
+-}
+diff --git a/src/app/(site)/workshops/page.tsx b/src/app/(site)/workshops/page.tsx
+deleted file mode 100644
+index f037a96..0000000
+--- a/src/app/(site)/workshops/page.tsx
++++ /dev/null
+@@ -1,109 +0,0 @@
+-// The workshop list, /workshops: example task 1, "find a workshop by topic and level".
+-// The two filters are in the address (/workshops?topic=brakes-and-gears&level=beginner), so a filtered
+-// list can be shared, bookmarked and reached again with Back, and the page works without JavaScript.
+-// Reading the address: src/tasks/find-workshop/filters.ts. The database question: queries.ts there.
+-import type { Metadata } from 'next'
+-import { getPayload } from 'payload'
+-import { cache } from 'react'
+-import { ButtonLink } from '@/components/site/ButtonLink'
+-import { PageTitle } from '@/components/site/PageTitle'
+-import { TrackStep } from '@/components/site/TrackStep'
+-import { WorkshopCard } from '@/components/site/WorkshopCard'
+-import { WorkshopFilters } from '@/components/site/WorkshopFilters'
+-import config from '@/payload.config'
+-import { filterQuery, filterSummary, parseFilters, type Level, type SearchParams } from '@/tasks/find-workshop/filters'
+-import { workshopWhere } from '@/tasks/find-workshop/queries'
+-
+-export const dynamic = 'force-dynamic'
+-
+-type Props = { searchParams: Promise<SearchParams> }
+-
+-// cache(): the page and its browser-tab title (generateMetadata) both need the same list. With cache()
+-// the database is asked once per visit and both get that answer.
+-const findWorkshops = cache(async (topicSlug: string | null, level: Level | null) => {
+-  const payload = await getPayload({ config })
+-  const topics = (await payload.find({ collection: 'topics', sort: 'name', depth: 0, limit: 100, joins: false })).docs
+-  // The topic named in the address, if one has that slug. An old link may name one that is gone.
+-  const topic = topicSlug ? topics.find((candidate) => candidate.slug === topicSlug) : undefined
+-  const workshops = (
+-    await payload.find({
+-      collection: 'workshops',
+-      where: workshopWhere({ topic: topicSlug, level }, topic?.id ?? null),
+-      sort: 'createdAt',
+-      // depth 1 fetches each workshop's image and topics with it; of a topic, only its name and slug.
+-      depth: 1,
+-      populate: { topics: { name: true, slug: true } },
+-      limit: 100,
+-    })
+-  ).docs
+-  return { topics, topic, workshops }
+-})
+-
+-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+-  const { topic, level } = parseFilters(await searchParams)
+-  const found = await findWorkshops(topic, level)
+-  // The tab title names the filters and the count: a screen reader reads it out when the page opens.
+-  let title = 'Workshops'
+-  if (found.workshops.length === 0) title = 'No workshops match these filters'
+-  else if (topic || level) title = filterSummary(level, found.topic?.name ?? null, found.workshops.length)
+-  return { title, description: 'Find a bicycle maintenance workshop by topic and level.' }
+-}
+-
+-export default async function WorkshopsPage({ searchParams }: Props) {
+-  const filters = parseFilters(await searchParams)
+-  const { topics, topic, workshops } = await findWorkshops(filters.topic, filters.level)
+-  // Carried to each workshop's page, so its Back link returns to this same filtered list.
+-  const query = filterQuery(filters)
+-
+-  return (
+-    <div className="pb-6">
+-      {/* The analytics step "filter_used" (src/lib/analytics.ts), when the user applied filters. Only the
+-          chosen level and a topic this site has are sent. once={query}: each choice of filters counts
+-          once per browser tab, also after a reload or Back (see TrackStep). key: a new choice starts
+-          a fresh TrackStep. */}
+-      {(filters.topic || filters.level) && (
+-        <TrackStep key={query} event="filter_used" once={query} props={{ topic: topic?.slug ?? '', level: filters.level ?? '' }} />
+-      )}
+-      <PageTitle
+-        title="Workshops"
+-        intro="Short maintenance workshops for your own bicycle, in small groups. Choose a topic and a level, or look through them all."
+-        tone="purple"
+-      />
+-      <div className="grid gap-block">
+-        <WorkshopFilters topics={topics} filters={filters} />
+-        {/* id="results": the form's "#results" scrolls here after Apply filters. scroll-mt-6 keeps a
+-            little space above the line. */}
+-        <section id="results" aria-labelledby="results-summary" className="grid scroll-mt-6 gap-block">
+-          {/* Apply filters loads a new page, and a screen reader then reads the browser tab's title,
+-              which names the filters and the count (generateMetadata, above). role="status" adds
+-              nothing on that first load; it is there for a later version that updates the list
+-              without a new page: a screen reader then reads out the changed line. */}
+-          <div role="status" className="grid gap-2">
+-            <h2 id="results-summary" className="text-2xl">
+-              {workshops.length > 0 ? filterSummary(filters.level, topic?.name ?? null, workshops.length) : 'No workshops match these filters'}
+-            </h2>
+-            {workshops.length === 0 && (
+-              <p className="max-w-(--container-reading)">
+-                {filters.topic && !topic
+-                  ? `This site has no topic called "${filters.topic}". The link may be out of date. `
+-                  : 'None of the workshops matches every filter you chose. '}
+-                Choose another topic or level, or see all workshops.
+-              </p>
+-            )}
+-          </div>
+-          {workshops.length > 0 ? (
+-            <ul className="grid gap-block lg:grid-cols-2">
+-              {workshops.map((workshop) => (
+-                <li key={workshop.id} className="grid">
+-                  <WorkshopCard workshop={workshop} query={query} />
+-                </li>
+-              ))}
+-            </ul>
+-          ) : (
+-            <ButtonLink href="/workshops" variant="secondary" className="w-fit">Clear filters</ButtonLink>
+-          )}
+-        </section>
+-      </div>
+-    </div>
+-  )
+-}
+diff --git a/src/collections/Bookings.ts b/src/collections/Bookings.ts
+index 7ac73fc..15609e4 100644
+--- a/src/collections/Bookings.ts
++++ b/src/collections/Bookings.ts
+@@ -32,8 +32,7 @@ export const Bookings: CollectionConfig = {
+     ],
+   },
+   fields: [
+-    // Every booking belongs to exactly one time slot. A later exercise in the course adds a second
+-    // relationship here: repairs.
++    // Every booking belongs to exactly one time slot.
+     {
+       name: 'timeSlot',
+       type: 'relationship',
+diff --git a/src/collections/Repairs.ts b/src/collections/Repairs.ts
+deleted file mode 100644
+index ac90a7d..0000000
+--- a/src/collections/Repairs.ts
++++ /dev/null
+@@ -1,25 +0,0 @@
+-import type { CollectionConfig } from 'payload'
+-import { publicContent } from '../access'
+-import { price } from './fields'
+-
+-// The repairs the clinic can do, each with its price.
+-export const Repairs: CollectionConfig = {
+-  slug: 'repairs',
+-  admin: {
+-    useAsTitle: 'name',
+-  },
+-  access: publicContent,
+-  fields: [
+-    {
+-      name: 'name',
+-      type: 'text',
+-      required: true,
+-    },
+-    price,
+-    {
+-      name: 'description',
+-      type: 'textarea',
+-    },
+-    // Add new repair fields here.
+-  ],
+-}
+diff --git a/src/collections/Topics.ts b/src/collections/Topics.ts
+deleted file mode 100644
+index 72d0a5c..0000000
+--- a/src/collections/Topics.ts
++++ /dev/null
+@@ -1,43 +0,0 @@
+-import type { CollectionConfig } from 'payload'
+-import { publicContent } from '../access'
+-import { checkUniqueSlug, preventDependentDeletion } from '../lib/modelIntegrity'
+-import { slug } from './fields'
+-
+-// A subject a workshop can cover, such as tyres or gears. Users filter the workshops by topic.
+-export const Topics: CollectionConfig = {
+-  slug: 'topics',
+-  admin: {
+-    useAsTitle: 'name',
+-  },
+-  access: publicContent,
+-  hooks: {
+-    beforeChange: [checkUniqueSlug],
+-    beforeDelete: [
+-      preventDependentDeletion(
+-        'workshops',
+-        'topics',
+-        'This topic is still used by workshops (see its Workshops list). Remove it from each workshop, then delete the topic.',
+-      ),
+-    ],
+-  },
+-  fields: [
+-    {
+-      name: 'name',
+-      type: 'text',
+-      required: true,
+-    },
+-    slug,
+-    {
+-      name: 'description',
+-      type: 'textarea',
+-    },
+-    // The reverse side of the many-to-many: read from each workshop's "topics".
+-    // Nothing is stored twice.
+-    {
+-      name: 'workshops',
+-      type: 'join',
+-      collection: 'workshops',
+-      on: 'topics',
+-    },
+-  ],
+-}
+diff --git a/src/collections/Workshops.ts b/src/collections/Workshops.ts
+deleted file mode 100644
+index def9508..0000000
+--- a/src/collections/Workshops.ts
++++ /dev/null
+@@ -1,93 +0,0 @@
+-import type { CollectionConfig } from 'payload'
+-import { publicContent } from '../access'
+-import { checkUniqueSlug, requireExistingRelation } from '../lib/modelIntegrity'
+-import { levelLabel } from '../lib/format'
+-import { LEVELS } from '../tasks/find-workshop/filters'
+-import { day, positiveInteger, price, slug, startTime } from './fields'
+-
+-// A weekly workshop that users can find by topic and level.
+-export const Workshops: CollectionConfig = {
+-  slug: 'workshops',
+-  admin: {
+-    useAsTitle: 'title',
+-  },
+-  access: publicContent,
+-  hooks: {
+-    beforeChange: [
+-      checkUniqueSlug,
+-      requireExistingRelation('topics', 'topics', 'A selected topic no longer exists. Choose the topics again.'),
+-      requireExistingRelation('image', 'media', 'This image no longer exists. Choose another image.'),
+-    ],
+-  },
+-  fields: [
+-    {
+-      name: 'title',
+-      type: 'text',
+-      required: true,
+-    },
+-    slug,
+-    {
+-      name: 'level',
+-      type: 'select',
+-      required: true,
+-      // The levels the workshop filter knows (src/tasks/find-workshop/filters.ts), each with the label
+-      // the site shows: "Beginner", "Intermediate".
+-      options: LEVELS.map((value) => ({ label: levelLabel(value), value })),
+-    },
+-    day,
+-    startTime,
+-    {
+-      name: 'endTime',
+-      type: 'text',
+-      admin: {
+-        description: 'Use the 24-hour clock, for example 20:00. Leave empty if the workshop has none.',
+-      },
+-    },
+-    // Not the same as endTime: some workshops have no fixed end, but must be over by a certain time
+-    // (the gear workshop, because the clinic needs the room from 15:00). The page then says
+-    // "ends by 15:00". A field, not a sentence in the description, so it is kept in one place.
+-    {
+-      name: 'latestEnd',
+-      label: 'Ends at the latest',
+-      type: 'text',
+-      admin: {
+-        description:
+-          'Only for a workshop with no end time that must be over by a certain time. Use the 24-hour clock, for example 15:00. Pages show "ends by 15:00".',
+-      },
+-    },
+-    price,
+-    {
+-      name: 'groupSize',
+-      type: 'number',
+-      required: true,
+-      defaultValue: 6,
+-      min: 1,
+-      validate: positiveInteger,
+-      admin: {
+-        description: 'The largest number of people in one workshop.',
+-      },
+-    },
+-    {
+-      name: 'summary',
+-      type: 'textarea',
+-      required: true,
+-    },
+-    {
+-      name: 'description',
+-      type: 'richText',
+-    },
+-    {
+-      name: 'image',
+-      type: 'upload',
+-      relationTo: 'media',
+-    },
+-    // The many-to-many: a workshop can cover several topics, and a topic can belong to several
+-    // workshops. Stored only here.
+-    {
+-      name: 'topics',
+-      type: 'relationship',
+-      relationTo: 'topics',
+-      hasMany: true,
+-    },
+-  ],
+-}
+diff --git a/src/components/site/BookingForm.tsx b/src/components/site/BookingForm.tsx
+index 4be3da2..c1c3d97 100644
+--- a/src/components/site/BookingForm.tsx
++++ b/src/components/site/BookingForm.tsx
+@@ -27,7 +27,6 @@ import { Input } from '@/components/ui/input'
+ import { Label } from '@/components/ui/label'
+ import { Textarea } from '@/components/ui/textarea'
+ import { MADE_UP_DATA_NOTICE } from '@/content/campus-cycle'
+-import type { Repair } from '@/payload-types'
+ import type { BookingField, BookingResult, BookingValues } from '@/tasks/book-slot/createBooking'
+ import { saveBooking } from '@/tasks/book-slot/saveBooking'
+ import { typedValues } from '@/tasks/book-slot/typedValues'
+@@ -38,8 +37,6 @@ type BookingFormProps = {
+   slots: SlotChoice[]
+   // A random code the clinic page makes for this one form (see requestId in src/collections/Bookings.ts).
+   requestId: string
+-  // The clinic's repairs, the same records as the price list above the form. Used by W6 (below).
+-  repairs: Pick<Repair, 'id' | 'name' | 'price'>[]
+   // The member who is logged in, with the optional members' area on (src/lib/membersArea.ts): their
+   // name ('' when their account has none) and their e-mail address, and nothing else. null when the
+   // area is off or nobody is logged in, and then the form is the ordinary one.
+@@ -49,8 +46,8 @@ type BookingFormProps = {
+ const EMPTY: BookingValues = { timeSlot: '', name: '', email: '', note: '' }
+ 
+ // What the user sent last time, for every part inside the form. The fields below get it directly; a
+-// part in its own function, such as W6's repair choice, reads it with useSentValues(), so it can show
+-// what the user had chosen when the form comes back.
++// part in its own function (a group of checkboxes, for example) reads it with useSentValues(), so it
++// can show what the user had chosen when the form comes back.
+ export const SentValues = createContext<BookingValues>(EMPTY)
+ export function useSentValues(): BookingValues {
+   return use(SentValues)
+@@ -75,36 +72,6 @@ async function sendBooking(previous: BookingResult | null, formData: FormData):
+   }
+ }
+ 
+-// W6: the repair choice, ready to switch on. Remove the // in front of every line of this function.
+-// Then replace the whole line {/* W6: <RepairChoice repairs={props.repairs} /> */} in the form below
+-// with <RepairChoice repairs={props.repairs} />. The server side is the two lines the W6 comment in
+-// createBooking.ts names (src/tasks/book-slot/createBooking.ts).
+-// function RepairChoice({ repairs }: { repairs: BookingFormProps['repairs'] }) {
+-//   // The repairs ticked in the last send, so they stay ticked when the form comes back.
+-//   const sent = useSentValues()
+-//   return (
+-//     <fieldset className="grid gap-3">
+-//       <legend className="mb-1 font-semibold">
+-//         Repairs <span className="font-normal text-ink-soft">(optional)</span>
+-//       </legend>
+-//       {repairs.map((repair) => {
+-//         // To show each repair's price too, replace the line under this comment with this line:
+-//         //   const label = repair.name + ', ' + formatPrice(repair.price)
+-//         // and add this line at the top of the file, under the other import lines:
+-//         //   import { formatPrice } from '@/lib/format'
+-//         // It reads each repair's own price, from the same record as the price list: nothing is copied.
+-//         const label = repair.name
+-//         return (
+-//           <label key={repair.id} className="flex min-h-11 items-center gap-3">
+-//             <input type="checkbox" name="repairs" value={repair.id} defaultChecked={sent.repairs?.includes(String(repair.id))} className="size-5 accent-ink" />
+-//             {label}
+-//           </label>
+-//         )
+-//       })}
+-//     </fieldset>
+-//   )
+-// }
+-
+ export function BookingForm(props: BookingFormProps) {
+   const { clinic, slots, requestId, member } = props
+   // state: null at first, then the answer of the last send (only failures come back: a saved booking
+@@ -186,8 +153,6 @@ export function BookingForm(props: BookingFormProps) {
+           {errors.note && <FieldError id="note-error">{errors.note}</FieldError>}
+         </div>
+ 
+-        {/* W6: <RepairChoice repairs={props.repairs} /> */}
+-
+         {/* The trap field: name="extra" is TRAP_FIELD in src/tasks/book-slot/guards.ts (keep the two the
+             same). People never see it, a screen reader skips it (aria-hidden) and Tab never reaches it
+             (tabIndex -1); a program that fills in every field fills this one, and its booking is not
+diff --git a/src/components/site/MainNav.tsx b/src/components/site/MainNav.tsx
+index ace84a9..0d806ac 100644
+--- a/src/components/site/MainNav.tsx
++++ b/src/components/site/MainNav.tsx
+@@ -2,13 +2,13 @@
+ 
+ // What this is: the main menu, one list of links. The link of the page you are on gets a navy frame
+ // with a solid offset and aria-current, so both sighted users and screen readers know where they are.
+-// On a phone the links wrap onto a second row instead of hiding behind a menu button: five short links
++// On a phone the links wrap onto a second row instead of hiding behind a menu button: a few short links
+ // fit, and links you can see need no extra tap.
+ //
+ // What to change for your own site: the LINKS list (the text and where each link goes).
+ // With the optional members' area on (src/lib/membersArea.ts), Header.tsx passes `account`, and the menu
+-// gets a sixth link: "My bookings" for a member who is logged in, "Log in" for everyone else. While the
+-// area is off the menu is exactly the five links.
++// gets one more link: "My bookings" for a member who is logged in, "Log in" for everyone else. While the
++// area is off the menu is exactly the links below.
+ // 'use client' because it asks for the address that is open (usePathname). The server still sends the
+ // finished menu as HTML, so it also works without JavaScript.
+ import Link from 'next/link'
+@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
+ 
+ const LINKS = [
+   { href: '/', label: 'Home' },
+-  { href: '/workshops', label: 'Workshops' },
+   { href: '/clinics', label: 'Repair clinic' },
+   { href: '/about', label: 'About' },
+   { href: '/contact', label: 'Contact' },
+@@ -27,12 +26,11 @@ const ACCOUNT_LINK = { href: '/account', label: 'My bookings' }
+ const LOGIN_LINK = { href: '/account/login', label: 'Log in' }
+ 
+ // "page": this exact page is open. "true": a page inside this part of the site is open, for example
+-// one workshop's page under Workshops (the topic pages belong to Workshops too).
++// one clinic's page under Repair clinic.
+ function currentFor(href: string, pathname: string): 'page' | 'true' | undefined {
+   if (pathname === href) return 'page'
+   if (href === '/') return undefined
+   if (pathname.startsWith(`${href}/`)) return 'true'
+-  if (href === '/workshops' && pathname.startsWith('/topics/')) return 'true'
+   return undefined
+ }
+ 
+diff --git a/src/components/site/TopicList.tsx b/src/components/site/TopicList.tsx
+deleted file mode 100644
+index de94423..0000000
+--- a/src/components/site/TopicList.tsx
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// What this is: a workshop's topics as a row of links, each to the topic's own page (/topics/<slug>),
+-// where all the workshops on that topic are listed. A visible "Topics" label says what the links are.
+-//
+-// What to change for your own site: the label text, and where a topic links to (topicHref).
+-import type { Topic } from '@/payload-types'
+-import { cn } from '@/lib/utils'
+-import { ButtonLink } from './ButtonLink'
+-
+-// A topic as Payload returns it: the whole record, or only its id when the query did not go deep
+-// enough to fetch it. Only whole records can be shown (they have a name and a slug).
+-type TopicLike = number | Pick<Topic, 'id' | 'name' | 'slug'>
+-
+-export const topicHref = (slug: string) => `/topics/${slug}`
+-
+-export function TopicList({ topics, className }: { topics?: TopicLike[] | null; className?: string }) {
+-  const shown = (topics ?? []).filter((topic): topic is Pick<Topic, 'id' | 'name' | 'slug'> => typeof topic === 'object')
+-  if (shown.length === 0) return null
+-  // The label on its own line, the chips side by side below it, wrapping onto a new row when there
+-  // is no room.
+-  return (
+-    <div className={cn('grid gap-2', className)}>
+-      <span className="text-ink-soft">{shown.length === 1 ? 'Topic' : 'Topics'}</span>
+-      <ul className="flex flex-wrap gap-2">
+-        {shown.map((topic) => (
+-          <li key={topic.id}>
+-            {/* min-h-11: 44 px high, a target a finger can hit easily. */}
+-            <ButtonLink href={topicHref(topic.slug)} variant="secondary" size="sm" className="min-h-11">
+-              {topic.name}
+-            </ButtonLink>
+-          </li>
+-        ))}
+-      </ul>
+-    </div>
+-  )
+-}
+diff --git a/src/components/site/TrackStep.tsx b/src/components/site/TrackStep.tsx
+index 598ab5c..6703a4f 100644
+--- a/src/components/site/TrackStep.tsx
++++ b/src/components/site/TrackStep.tsx
+@@ -2,8 +2,8 @@
+ 
+ // What this is: tells the analytics tool that the user reached a key step (track() in
+ // src/lib/analytics.ts), once, when the page has opened in the browser. It shows nothing on the page.
+-// A page puts it where the step has really happened: the workshop list when filters are applied, the
+-// confirmation page when a booking was saved. Without JavaScript the page works the same; only the
++// A page puts it where the step has really happened: the confirmation page when a booking was saved,
++// or a list page when its filters are applied. Without JavaScript the page works the same; only the
+ // count is missing.
+ //
+ // `once`: a name for this one step, such as the booking's number or the filters chosen. The browser
+diff --git a/src/components/site/WorkshopCard.tsx b/src/components/site/WorkshopCard.tsx
+deleted file mode 100644
+index dc0594d..0000000
+--- a/src/components/site/WorkshopCard.tsx
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// What this is: one workshop in a list: its photo (left on wide screens, on top on phones), its title
+-// as the link to its page, its level, when it is, its price, its one-line summary and its topics.
+-// Every value comes from the workshop's own record, so a change in /admin shows here at once.
+-//
+-// What to change for your own site: which facts the card shows (the <dl> below), and the colour
+-// (accent): purple means workshops on this site, coral the clinic.
+-import type { Workshop } from '@/payload-types'
+-import { Badge } from '@/components/ui/badge'
+-import { formatPrice, formatWhen, imageFrom, levelLabel } from '@/lib/format'
+-import { FramedCard } from './FramedCard'
+-import { TopicList } from './TopicList'
+-
+-type WorkshopCardProps = {
+-  workshop: Workshop
+-  // The end of the address the list was opened with ("?topic=…&level=…"). The link to the workshop
+-  // carries it, so the workshop's page can link back to the same filtered list.
+-  query?: string
+-  headingLevel?: 'h2' | 'h3'
+-}
+-
+-export function WorkshopCard({ workshop, query = '', headingLevel = 'h3' }: WorkshopCardProps) {
+-  return (
+-    <FramedCard
+-      title={workshop.title}
+-      href={`/workshops/${workshop.slug}${query}`}
+-      image={imageFrom(workshop.image)}
+-      accent="purple"
+-      headingLevel={headingLevel}
+-    >
+-      <Badge tone={workshop.level === 'beginner' ? 'mint' : 'yellow'}>{levelLabel(workshop.level)}</Badge>
+-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1">
+-        <dt className="text-ink-soft">When</dt>
+-        <dd className="font-semibold">{formatWhen(workshop)}</dd>
+-        <dt className="text-ink-soft">Price</dt>
+-        <dd className="font-semibold">{formatPrice(workshop.price)}</dd>
+-      </dl>
+-      <p>{workshop.summary}</p>
+-      <TopicList topics={workshop.topics} />
+-    </FramedCard>
+-  )
+-}
+diff --git a/src/components/site/WorkshopFilters.tsx b/src/components/site/WorkshopFilters.tsx
+deleted file mode 100644
+index 4fcc358..0000000
+--- a/src/components/site/WorkshopFilters.tsx
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// What this is: the two filters above the workshop list, topic and level, in a plain form. method="get"
+-// puts the choices in the address (/workshops?topic=…&level=…), so it works without JavaScript, a
+-// filtered list can be shared, and Back returns to it. Nothing happens until "Apply filters": the page
+-// does not jump while someone is still choosing, and the keyboard focus stays where it is.
+-//
+-// What to change for your own site: the labels, and the LEVELS in src/tasks/find-workshop/filters.ts.
+-import type { Topic } from '@/payload-types'
+-import { Button } from '@/components/ui/button'
+-import { Label } from '@/components/ui/label'
+-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+-import { levelLabel } from '@/lib/format'
+-import { LEVELS, type Filters } from '@/tasks/find-workshop/filters'
+-import { ButtonLink } from './ButtonLink'
+-
+-type WorkshopFiltersProps = {
+-  topics: Pick<Topic, 'id' | 'name' | 'slug'>[]
+-  filters: Pick<Filters, 'topic' | 'level'>
+-}
+-
+-export function WorkshopFilters({ topics, filters }: WorkshopFiltersProps) {
+-  const filtered = Boolean(filters.topic || filters.level)
+-  return (
+-    <form
+-      method="get"
+-      // #results: after "Apply filters" the browser scrolls down to the results, so on a phone the
+-      // user sees them at once instead of the top of the page again. The filters still go in the
+-      // address before the #: /workshops?topic=…&level=…#results.
+-      action="/workshops#results"
+-      aria-label="Filter the workshops"
+-      className="grid gap-5 rounded-panel bg-blue-tint p-5 sm:p-6 md:grid-cols-[1fr_1fr_auto] md:items-end"
+-    >
+-      <div className="grid gap-2">
+-        <Label htmlFor="filter-topic">Topic</Label>
+-        <NativeSelect id="filter-topic" name="topic" defaultValue={filters.topic ?? ''}>
+-          <NativeSelectOption value="">All topics</NativeSelectOption>
+-          {topics.map((topic) => (
+-            <NativeSelectOption key={topic.id} value={topic.slug}>{topic.name}</NativeSelectOption>
+-          ))}
+-        </NativeSelect>
+-      </div>
+-      <div className="grid gap-2">
+-        <Label htmlFor="filter-level">Level</Label>
+-        <NativeSelect id="filter-level" name="level" defaultValue={filters.level ?? ''}>
+-          <NativeSelectOption value="">All levels</NativeSelectOption>
+-          {LEVELS.map((level) => (
+-            <NativeSelectOption key={level} value={level}>{levelLabel(level)}</NativeSelectOption>
+-          ))}
+-        </NativeSelect>
+-      </div>
+-      <div className="flex flex-wrap items-center gap-3">
+-        <Button type="submit">Apply filters</Button>
+-        {filtered && <ButtonLink href="/workshops" variant="secondary">Clear filters</ButtonLink>}
+-      </div>
+-    </form>
+-  )
+-}
+diff --git a/src/content/campus-cycle.ts b/src/content/campus-cycle.ts
+index 65a368c..a7a0d3c 100644
+--- a/src/content/campus-cycle.ts
++++ b/src/content/campus-cycle.ts
+@@ -13,20 +13,18 @@
+ // To replace the example with your own content:
+ // - before your first deploy: change the facts here and the page texts in src/seed/seed.ts;
+ // - after it: edit the records in /admin (changing this file then changes nothing on the site);
+-// - each workshop needs a line in SUMMARIES, its text in DESCRIPTIONS and a photo <slug>.jpg listed
+-//   in IMAGES (all in src/seed/seed.ts);
+ // - to start from an empty site instead, set ADD_EXAMPLE_CONTENT to false in src/seed/seed.ts before
+ //   your first deploy; after it, delete the example records in /admin (they do not come back).
+ //
+-// `as const` makes every value here fixed: TypeScript then knows, for example, that the puncture
+-// workshop's day is exactly 'Tuesday', not just "some text", and warns about a typo anywhere it is used.
++// `as const` makes every value here fixed: TypeScript then knows, for example, that the clinic's day is
++// exactly 'Saturday', not just "some text", and warns about a typo anywhere it is used.
+ 
+ // The site's name: in the header, the footer and every browser tab ("<Page> · Campus Cycle", from
+ // SITE_TITLE below). Change it here, once.
+ export const SITE_NAME = 'Campus Cycle'
+ 
+ // The browser tab's title. The home page shows the name alone; every other page gives only its own part
+-// (such as "Workshops") and Next.js adds " · " and the name after it, so a tab or a bookmark says both
++// (such as "Repair clinic") and Next.js adds " · " and the name after it, so a tab or a bookmark says both
+ // what the page is and which site it belongs to. Used by src/app/(site)/layout.tsx.
+ export const SITE_TITLE = { default: SITE_NAME, template: `%s · ${SITE_NAME}` }
+ 
+@@ -35,86 +33,6 @@ export const CAMPUS_CYCLE = {
+   // (src/globals/SiteFacts.ts): every page that shows them reads them from there.
+   place: 'Workshop B, Student Centre',
+   email: 'hello@campuscycle.example',
+-  // Only the puncture workshop has a stated end time. The others have none on purpose: never make one
+-  // up. The gear workshop must end by 15:00 (its latestEnd), because the Saturday repair clinic uses
+-  // the same room from 15:00. That is a limit, not an end time.
+-  workshops: [
+-    {
+-      title: 'Repair a puncture',
+-      slug: 'repair-a-puncture',
+-      level: 'beginner',
+-      day: 'Tuesday',
+-      startTime: '18:30',
+-      endTime: '20:00',
+-      price: 15,
+-      topics: ['tyres-and-wheels', 'everyday-maintenance'],
+-    },
+-    {
+-      title: 'Adjust your brakes',
+-      slug: 'adjust-your-brakes',
+-      level: 'beginner',
+-      day: 'Saturday',
+-      startTime: '10:00',
+-      price: 15,
+-      topics: ['brakes-and-gears', 'everyday-maintenance'],
+-    },
+-    {
+-      title: 'Service a gear system',
+-      slug: 'service-a-gear-system',
+-      level: 'intermediate',
+-      day: 'Saturday',
+-      startTime: '13:00',
+-      latestEnd: '15:00',
+-      price: 25,
+-      topics: ['brakes-and-gears'],
+-    },
+-    {
+-      title: 'True a wheel',
+-      slug: 'true-a-wheel',
+-      level: 'intermediate',
+-      day: 'Thursday',
+-      startTime: '19:00',
+-      price: 25,
+-      topics: ['tyres-and-wheels'],
+-    },
+-  ],
+-  // Three topics that overlap: the puncture and brakes workshops each have two topics, so the site can
+-  // show a many-to-many link from both sides.
+-  topics: [
+-    {
+-      name: 'Tyres and wheels',
+-      slug: 'tyres-and-wheels',
+-      description: 'Fix a flat tyre and get a buckled wheel running straight again.',
+-    },
+-    {
+-      name: 'Brakes and gears',
+-      slug: 'brakes-and-gears',
+-      description: 'Adjusting brakes and servicing gear systems.',
+-    },
+-    {
+-      name: 'Everyday maintenance',
+-      slug: 'everyday-maintenance',
+-      description: 'Everyday jobs on your own bicycle: mending a puncture and adjusting your brakes.',
+-    },
+-  ],
+-  // The Saturday repair clinic's price list. The fact sheet gives only each repair's name and price,
+-  // so the seed leaves each repair's description empty: typing the price into it would keep a second
+-  // copy that goes stale when an editor changes the price. An editor can add a description in /admin.
+-  repairs: [
+-    {
+-      name: 'Check',
+-      price: 10,
+-    },
+-    {
+-      name: 'Each small repair',
+-      price: 5,
+-    },
+-    {
+-      name: 'Full service',
+-      price: 45,
+-    },
+-  ],
+-  groupSize: 6,
+   pricingRule: 'Tools, a tutor and standard parts are included. Bring your own parts and pay EUR 5 less per bicycle.',
+   // The clinic is NOT in the seed: you add it yourself in /admin (a later exercise in the course asks
+   // you to add it), with its time slots. These are the agreed facts for it: Saturday 15:00 to 17:00,
+@@ -138,5 +56,3 @@ export const MADE_UP_DATA_NOTICE = 'This is a practice project: use made-up deta
+ // What the booking confirmation page shows after a booking was saved.
+ export const BOOKING_CONFIRMATION = `Your booking is saved. ${MADE_UP_DATA_NOTICE}`
+ 
+-// The kinds of value above, for code that wants to name them, for example `(w: CampusCycleWorkshop)`.
+-export type CampusCycleWorkshop = (typeof CAMPUS_CYCLE.workshops)[number]
+diff --git a/src/globals/SiteFacts.ts b/src/globals/SiteFacts.ts
+index 1ccadec..9541552 100644
+--- a/src/globals/SiteFacts.ts
++++ b/src/globals/SiteFacts.ts
+@@ -2,7 +2,7 @@ import type { GlobalConfig } from 'payload'
+ import { anyone, editorsOnly } from '../access'
+ 
+ // The facts that several pages show: one record, so each fact has one source. An editor changes the
+-// pricing rule here once, and the home page and every workshop page show the new text at once.
++// pricing rule here once, and every page that shows it has the new text at once.
+ // A "global" is a record that exists exactly once (there is one set of site facts, not a list).
+ export const SiteFacts: GlobalConfig = {
+   slug: 'site-facts',
+@@ -21,7 +21,7 @@ export const SiteFacts: GlobalConfig = {
+       type: 'textarea',
+       required: true,
+       admin: {
+-        description: 'Shown on the home page and on every workshop page.',
++        description: 'Shown on the home page.',
+       },
+     },
+     {
+@@ -29,7 +29,7 @@ export const SiteFacts: GlobalConfig = {
+       type: 'text',
+       required: true,
+       admin: {
+-        description: 'Where the workshops and the clinic are. Shown on the Contact page and on every workshop page.',
++        description: 'Where the clinic is. Shown on the Contact page and on the clinic page.',
+       },
+     },
+     {
+diff --git a/src/lib/analytics.ts b/src/lib/analytics.ts
+index 266b346..e02cae8 100644
+--- a/src/lib/analytics.ts
++++ b/src/lib/analytics.ts
+@@ -1,6 +1,6 @@
+ // What this is: one small helper, track(), that tells an analytics tool "a user just did this step".
+ // The site calls it at the two key steps of its user tasks:
+-//   - 'filter_used': the workshop filters were applied (src/app/(site)/workshops/page.tsx);
++//   - 'filter_used': a list page's filters were applied (none yet: your own list page can send it);
+ //   - 'booking_saved': a booking was saved (src/app/(site)/clinics/[slug]/booked/page.tsx).
+ //
+ // NEXT_PUBLIC_ANALYTICS names the analytics tool (see .env.example). While it is not set, nothing is
+diff --git a/src/lib/format.ts b/src/lib/format.ts
+index b3ed3f9..077d091 100644
+--- a/src/lib/format.ts
++++ b/src/lib/format.ts
+@@ -45,11 +45,6 @@ export function placesLabel(placesLeft: number): string {
+   return placesLeft === 1 ? '1 place left' : `${placesLeft} places left`
+ }
+ 
+-/** The stored level ("beginner") as users read it ("Beginner"). */
+-export function levelLabel(level: string): string {
+-  return level.charAt(0).toUpperCase() + level.slice(1)
+-}
+-
+ /**
+  * An image record from the media library, ready for next/image: its address, its description (alt)
+  * and its size. Returns null when there is no image, or it was only stored as a number (depth 0).
+diff --git a/src/payload.config.ts b/src/payload.config.ts
+index f4c02cb..f528f8a 100644
+--- a/src/payload.config.ts
++++ b/src/payload.config.ts
+@@ -9,12 +9,9 @@ import sharp from 'sharp'
+ import { Users } from './collections/Users'
+ import { Media } from './collections/Media'
+ import { Pages } from './collections/Pages'
+-import { Topics } from './collections/Topics'
+-import { Workshops } from './collections/Workshops'
+ import { Clinics } from './collections/Clinics'
+ import { TimeSlots } from './collections/TimeSlots'
+ import { Bookings } from './collections/Bookings'
+-import { Repairs } from './collections/Repairs'
+ import { Throttle } from './collections/Throttle'
+ import { Members } from './collections/Members'
+ import { SiteFacts } from './globals/SiteFacts'
+@@ -52,7 +49,7 @@ const config = buildConfig({
+     },
+   },
+   // Members: the optional members' area, off unless MEMBERS_AREA=on (src/lib/membersArea.ts).
+-  collections: [Users, Media, Pages, Topics, Workshops, Clinics, TimeSlots, Bookings, Repairs, Throttle, Members],
++  collections: [Users, Media, Pages, Clinics, TimeSlots, Bookings, Throttle, Members],
+   globals: [SiteFacts],
+   plugins: [vercelBlobStorage({
+     enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+diff --git a/src/seed/images/SOURCES.md b/src/seed/images/SOURCES.md
+index 6e9bc64..48018f3 100644
+--- a/src/seed/images/SOURCES.md
++++ b/src/seed/images/SOURCES.md
+@@ -1,6 +1,6 @@
+ # Where the starter's images come from
+ 
+-All six photos come from Wikimedia Commons. None shows a person. Each was resized to 1200 px wide (a JPEG, quality 78); nothing else was changed. When you use one, keep its line here: some licences require that you name the photographer and the licence.
++Both photos come from Wikimedia Commons. None shows a person. Each was resized to 1200 px wide (a JPEG, quality 78); nothing else was changed. When you use one, keep its line here: some licences require that you name the photographer and the licence.
+ 
+ Each photo was resized from the original and is shared under its own licence, as listed. The site's about page says the same, under "Photo credits", with each photo linked to its Commons page and each licence to its text (the seed writes it: `PHOTO_CREDITS` in `src/seed/seed.ts`).
+ 
+@@ -8,10 +8,6 @@ When you replace them with images for your own site, use photos you are allowed
+ 
+ | File | Shows | Original | Photographer | Licence |
+ | --- | --- | --- | --- | --- |
+-| `repair-a-puncture.jpg` | A puncture repair kit: tyre levers, patches, glue | [Puncture-repaire-kit.jpg](https://commons.wikimedia.org/wiki/File:Puncture-repaire-kit.jpg) | Björn Appel | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+-| `adjust-your-brakes.jpg` | A bicycle caliper brake | [Bicycle caliper brake 1.jpg](https://commons.wikimedia.org/wiki/File:Bicycle_caliper_brake_1.jpg) | Troy Sankey | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+-| `service-a-gear-system.jpg` | A rear cassette and derailleur | [Rearbikegears.jpg](https://commons.wikimedia.org/wiki/File:Rearbikegears.jpg) | Thegreenj | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+-| `true-a-wheel.jpg` | A wheel in a truing stand in a workshop | [Bicycle wheel truing stand.jpg](https://commons.wikimedia.org/wiki/File:Bicycle_wheel_truing_stand.jpg) | Foxtod | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+ | `workshop-tools.jpg` | A workshop wall of bicycle tools | [Bicycle repair tools, Bicycle Kitchen, Los Angeles.jpg](https://commons.wikimedia.org/wiki/File:Bicycle_repair_tools,_Bicycle_Kitchen,_Los_Angeles.jpg) | Downtowngal | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+ | `clinic-tools.jpg` | Hand tools and a patch kit laid out | [BicycleRepairTools.JPG](https://commons.wikimedia.org/wiki/File:BicycleRepairTools.JPG) | Gengiskanhg | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+ 
+diff --git a/src/seed/seed.ts b/src/seed/seed.ts
+index 6ccdee5..2291a20 100644
+--- a/src/seed/seed.ts
++++ b/src/seed/seed.ts
+@@ -1,5 +1,5 @@
+ // The seed: puts the Campus Cycle example content into a new site's database, so the site has real
+-// workshops, topics, prices, pages and images to show from its very first day.
++// pages and images to show from its very first day.
+ //
+ // It adds the example content ONCE PER DATABASE. After a run that finished without an error, it notes
+ // that in the database (one row in a small table of its own: src/seed/exampleFlag.ts). Every later run
+@@ -11,7 +11,7 @@
+ // A preview database is a copy of production, note included, so it is never seeded again either.
+ //
+ // `npm run seed -- --again` adds back only the example records that are missing (it looks for each
+-// one: pages, topics and workshops by slug, repairs by name, images by file name). It never overwrites
++// one: pages by slug, images by file name). It never overwrites
+ // a record that exists, because an editor may have changed it, and the note stays.
+ //
+ // The first editor account (from FIRST_ADMIN_EMAIL and FIRST_ADMIN_PASSWORD) is a separate step that
+@@ -23,18 +23,14 @@
+ // To replace the example with your own content:
+ // - before your first deploy: change the facts in src/content/campus-cycle.ts and the page texts
+ //   below; after it, edit the records in /admin instead (the seed does not run again);
+-// - each workshop needs a line in SUMMARIES, its text in DESCRIPTIONS and a photo <slug>.jpg listed
+-//   in IMAGES (the photo itself goes in src/seed/images, with its source in SOURCES.md there);
++// - each photo is listed in IMAGES (the photo itself goes in src/seed/images, with its source in
++//   SOURCES.md there);
+ // - to start from an empty site, set ADD_EXAMPLE_CONTENT to false before your first deploy: the first
+ //   editor is still created. After it, delete the example records in /admin (they do not come back).
+ import path from 'node:path'
+ import { fileURLToPath } from 'node:url'
+ import type { CollectionSlug, Payload, Where } from 'payload'
+-import {
+-  CAMPUS_CYCLE,
+-  MADE_UP_DATA_NOTICE,
+-  type CampusCycleWorkshop,
+-} from '../content/campus-cycle'
++import { CAMPUS_CYCLE, MADE_UP_DATA_NOTICE } from '../content/campus-cycle'
+ import { PlainError } from '../lib/plainError'
+ import { richText } from './richText'
+ 
+@@ -47,25 +43,9 @@ export const ADD_EXAMPLE_CONTENT = true
+ // The photos live next to this file, in src/seed/images (their sources and licences: SOURCES.md there).
+ const IMAGES_FOLDER = fileURLToPath(new URL('./images/', import.meta.url))
+ 
+-// Each workshop's photo is named after its slug. The alt text describes the photo for people who cannot
+-// see it (a screen reader reads it out), so it says what is in the picture, not just "a photo".
++// The alt text describes each photo for people who cannot see it (a screen reader reads it out), so it
++// says what is in the picture, not just "a photo".
+ const IMAGES = [
+-  {
+-    filename: 'repair-a-puncture.jpg',
+-    alt: 'A puncture repair kit: three tyre levers, patches and a tube of glue',
+-  },
+-  {
+-    filename: 'adjust-your-brakes.jpg',
+-    alt: 'Close-up of a silver bicycle caliper brake with its two black brake pads',
+-  },
+-  {
+-    filename: 'service-a-gear-system.jpg',
+-    alt: 'The back wheel of a bicycle with a red frame: the stack of gear sprockets, the chain and the derailleur that moves it',
+-  },
+-  {
+-    filename: 'true-a-wheel.jpg',
+-    alt: 'A bicycle wheel clamped in a truing stand on a workbench, in front of a wall of tools',
+-  },
+   // The home page's picture.
+   {
+     filename: 'workshop-tools.jpg',
+@@ -89,32 +69,7 @@ const CC_BY_SA_4 = {
+   licence: 'CC BY-SA 4.0',
+   licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+ }
+-const CC0 = { licence: 'CC0 (public domain)', licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/' }
+ const PHOTO_CREDITS = [
+-  {
+-    title: 'Puncture-repaire-kit.jpg',
+-    page: 'https://commons.wikimedia.org/wiki/File:Puncture-repaire-kit.jpg',
+-    photographer: 'Björn Appel',
+-    ...CC_BY_SA_3,
+-  },
+-  {
+-    title: 'Bicycle caliper brake 1.jpg',
+-    page: 'https://commons.wikimedia.org/wiki/File:Bicycle_caliper_brake_1.jpg',
+-    photographer: 'Troy Sankey',
+-    ...CC_BY_SA_4,
+-  },
+-  {
+-    title: 'Rearbikegears.jpg',
+-    page: 'https://commons.wikimedia.org/wiki/File:Rearbikegears.jpg',
+-    photographer: 'Thegreenj',
+-    ...CC_BY_SA_3,
+-  },
+-  {
+-    title: 'Bicycle wheel truing stand.jpg',
+-    page: 'https://commons.wikimedia.org/wiki/File:Bicycle_wheel_truing_stand.jpg',
+-    photographer: 'Foxtod',
+-    ...CC0,
+-  },
+   {
+     title: 'Bicycle repair tools, Bicycle Kitchen, Los Angeles.jpg',
+     page: 'https://commons.wikimedia.org/wiki/File:Bicycle_repair_tools,_Bicycle_Kitchen,_Los_Angeles.jpg',
+@@ -129,64 +84,30 @@ const PHOTO_CREDITS = [
+   },
+ ]
+ 
+-// What each workshop teaches, in one sentence: shown in lists and at the top of the workshop's page.
+-// Not its level: the level is a field, and the lists show it next to this sentence from there.
+-const SUMMARIES: Record<CampusCycleWorkshop['slug'], string> = {
+-  'repair-a-puncture': 'Learn to find and mend a puncture.',
+-  'adjust-your-brakes': 'Learn to adjust your brakes.',
+-  'service-a-gear-system': 'Learn to service a gear system.',
+-  'true-a-wheel': 'Learn to true a wheel: make a wheel that wobbles run straight again.',
+-}
+-
+-// What you learn and do in each workshop, in a few sentences: the workshop's description. Prose only:
+-// no day, time, place, group size, price or level, and not the pricing rule. Those are fields of the
+-// workshop or of the Site facts global, and the workshop's page shows them from there. Typed here as
+-// well, a copy would stay behind, out of date, when an editor changed the field in /admin.
+-const DESCRIPTIONS: Record<CampusCycleWorkshop['slug'], string[]> = {
+-  'repair-a-puncture': [
+-    'You learn to take the wheel out of the bicycle, lift the tyre off with tyre levers and find the hole in the inner tube.',
+-    'Then you patch the hole, fit the tube and the tyre again and put the wheel back in.',
+-  ],
+-  'adjust-your-brakes': [
+-    'You learn to check how worn your brake pads are, line them up with the rim and set the brake cable, so that the brakes grip firmly when you pull the lever.',
+-  ],
+-  'service-a-gear-system': [
+-    'You learn to clean the chain and the gear sprockets, and to adjust the derailleur, the part that moves the chain, so that the chain shifts cleanly from one gear to the next.',
+-  ],
+-  'true-a-wheel': [
+-    'A wheel wobbles when its spokes pull unevenly. You learn to find the wobble in a truing stand, then tighten and loosen the spokes until the wheel runs straight again.',
+-  ],
+-}
+-
+-function workshopDescription(workshop: CampusCycleWorkshop) {
+-  return richText(DESCRIPTIONS[workshop.slug].map((paragraph) => ({ paragraph })))
+-}
+-
+ export const PAGES = [
+   {
+     title: 'Campus Cycle',
+     slug: 'home',
+-    // No word about the clinic here: it is not in the seed, and until you add it the home page says
+-    // "The repair clinic opens soon".
++    // No word about the clinic's times here: it is not in the seed, and until you add it the home page
++    // says "The repair clinic opens soon".
+     intro:
+-      'Campus Cycle is the bicycle repair service at the college. Learn to look after your own bicycle in a short maintenance workshop.',
+-    // No body: everything else on the home page comes from its own record: the workshops, the clinic,
+-    // and the pricing rule from the Site facts global.
++      'Campus Cycle is the bicycle repair service at the college. Bring your bicycle for a check or a repair.',
++    // No body: everything else on the home page comes from its own record: the clinic, and the pricing
++    // rule from the Site facts global.
+   },
+   {
+     title: 'About Campus Cycle',
+     slug: 'about',
+-    intro: 'Who we are, how the workshops work and where to find us.',
++    intro: 'Who we are, what we do and where to find us.',
+     body: richText([
+       {
+         paragraph:
+-          'Campus Cycle is a fictional bicycle repair service at a college. Two staff members run it. It also offers short maintenance workshops.',
++          'Campus Cycle is a fictional bicycle repair service at a college. Two staff members run it.',
+       },
+-      { heading: 'The workshops' },
+-      // No numbers here: each workshop's own page shows its facts from its record.
++      { heading: 'Checks and repairs' },
++      // No times here: the clinic's own page shows them from its record, once it is open.
+       {
+-        paragraph:
+-          "Workshops are short and in small groups. Each workshop's page gives its day, price and group size.",
++        paragraph: 'Bring your bicycle for a check or a repair. When the repair clinic is open, you first book a time slot on its page.',
+       },
+       { heading: 'Where to find us' },
+       // A link, not the address: the Contact page shows the place from the Site facts global.
+@@ -206,7 +127,7 @@ export const PAGES = [
+   {
+     title: 'Contact',
+     slug: 'contact',
+-    intro: 'Questions about a workshop or the repair clinic? Send us an e-mail.',
++    intro: 'Questions about the repair clinic? Send us an e-mail.',
+     // Prose only: the Contact page shows the e-mail address and the place from the Site facts global.
+     body: richText([
+       { paragraph: 'There is no contact form on this site: send an e-mail instead.' },
+@@ -258,30 +179,9 @@ export const NO_BLOB_STORE_MESSAGE =
+ 
+ export type SeedResult = { created: number; skipped: number }
+ 
+-// The id of a record the seed found or created a moment ago. A missing one is a mistake in this file
+-// (for example a topic slug with a typo), so stop with a clear message instead of saving a broken link.
+-function idOf(ids: Map<string, number>, key: string): number {
+-  const id = ids.get(key)
+-  if (id === undefined)
+-    throw new PlainError(
+-      `The seed has no record called "${key}": check src/content/campus-cycle.ts.`,
+-    )
+-  return id
+-}
+-
+-function imageOf(ids: Map<string, number>, workshop: CampusCycleWorkshop): number {
+-  const id = ids.get(`${workshop.slug}.jpg`)
+-  if (id === undefined) {
+-    throw new PlainError(
+-      `The workshop "${workshop.slug}" has no photo. Every workshop needs a photo named <slug>.jpg, listed in IMAGES in src/seed/seed.ts: add ${workshop.slug}.jpg to src/seed/images and to IMAGES.`,
+-    )
+-  }
+-  return id
+-}
+-
+ // Is `stored` the file `wanted`, perhaps under a number Payload added? When a file with the same name
+-// is already in the upload folder, Payload saves the new one as repair-a-puncture-1.jpg (then -2, …),
+-// and that is still the puncture photo.
++// is already in the upload folder, Payload saves the new one as clinic-tools-1.jpg (then -2, …),
++// and that is still the clinic photo.
+ function sameImage(stored: string | null | undefined, wanted: string): boolean {
+   if (!stored) return false
+   const { name, ext } = path.parse(wanted)
+@@ -316,8 +216,8 @@ export async function seed(
+     return found.docs[0] as { id: number | string } | undefined
+   }
+ 
+-  // Creates a record only when `existing` is missing. Returns its id either way, so the next records
+-  // can link to it (a workshop to its topics and its image).
++  // Creates a record only when `existing` is missing. Returns its id either way, so a later record
++  // could link to it.
+   async function keepOrCreate(
+     existing: { id: number | string } | undefined,
+     create: () => Promise<{ id: number }>,
+@@ -352,7 +252,7 @@ export async function seed(
+   if (uploadsImages && env.VERCEL && !env.BLOB_READ_WRITE_TOKEN)
+     throw new PlainError(NO_BLOB_STORE_MESSAGE)
+ 
+-  // 2. The images first: the workshops link to them.
++  // 2. The images.
+   const imageIds = new Map<string, number>()
+   for (const image of IMAGES) {
+     const id = await keepOrCreate(existingImages.get(image.filename), () =>
+@@ -366,57 +266,14 @@ export async function seed(
+     imageIds.set(image.filename, id)
+   }
+ 
+-  // 3. The topics: the workshops link to them too.
+-  const topicIds = new Map<string, number>()
+-  for (const topic of CAMPUS_CYCLE.topics) {
+-    const id = await keepOrCreate(await findOne('topics', { slug: { equals: topic.slug } }), () =>
+-      payload.create({ collection: 'topics', data: { ...topic }, overrideAccess: true }),
+-    )
+-    topicIds.set(topic.slug, id)
+-  }
+-
+-  // 4. The workshops, each with its topics (the many-to-many) and its image.
+-  for (const workshop of CAMPUS_CYCLE.workshops) {
+-    await keepOrCreate(await findOne('workshops', { slug: { equals: workshop.slug } }), () =>
+-      payload.create({
+-        collection: 'workshops',
+-        data: {
+-          title: workshop.title,
+-          slug: workshop.slug,
+-          level: workshop.level,
+-          day: workshop.day,
+-          startTime: workshop.startTime,
+-          // Only when the facts give one: the other workshops have no end time.
+-          ...('endTime' in workshop ? { endTime: workshop.endTime } : {}),
+-          // Only the gear workshop has a latest end ("ends by 15:00"): a limit, not an end time.
+-          ...('latestEnd' in workshop ? { latestEnd: workshop.latestEnd } : {}),
+-          price: workshop.price,
+-          groupSize: CAMPUS_CYCLE.groupSize,
+-          summary: SUMMARIES[workshop.slug],
+-          description: workshopDescription(workshop),
+-          image: imageOf(imageIds, workshop),
+-          topics: workshop.topics.map((slug) => idOf(topicIds, slug)),
+-        },
+-        overrideAccess: true,
+-      }),
+-    )
+-  }
+-
+-  // 5. The clinic's price list.
+-  for (const repair of CAMPUS_CYCLE.repairs) {
+-    await keepOrCreate(await findOne('repairs', { name: { equals: repair.name } }), () =>
+-      payload.create({ collection: 'repairs', data: { ...repair }, overrideAccess: true }),
+-    )
+-  }
+-
+-  // 6. The pages.
++  // 3. The pages.
+   for (const page of PAGES) {
+     await keepOrCreate(await findOne('pages', { slug: { equals: page.slug } }), () =>
+       payload.create({ collection: 'pages', data: page, overrideAccess: true }),
+     )
+   }
+ 
+-  // 7. The Site facts: the facts several pages show, kept in one place. A global always "exists" (it
++  // 4. The Site facts: the facts several pages show, kept in one place. A global always "exists" (it
+   // reads as empty until it is first saved), so an empty pricing rule means it was never filled in.
+   const facts = await payload.findGlobal({ slug: 'site-facts', depth: 0, overrideAccess: true })
+   if (facts.pricingRule) {
+diff --git a/src/tasks/book-slot/README.md b/src/tasks/book-slot/README.md
+index 03477e9..127b1ad 100644
+--- a/src/tasks/book-slot/README.md
++++ b/src/tasks/book-slot/README.md
+@@ -11,8 +11,8 @@ protect them:
+ 
+ | File | What it does |
+ |---|---|
+-| `src/app/(site)/clinics/[slug]/page.tsx` | The clinic's page: the clinic, its prices, and the booking form with the time slots that have not started yet and their places left |
+-| `src/components/site/BookingForm.tsx` | The form: its fields, and W6's repair choice, ready to switch on |
++| `src/app/(site)/clinics/[slug]/page.tsx` | The clinic's page: the clinic, and the booking form with the time slots that have not started yet and their places left |
++| `src/components/site/BookingForm.tsx` | The form and its fields |
+ | `src/components/site/BookingSubmitButton.tsx`, `src/components/site/BookingProblem.tsx` | The form's button ("Saving your booking…" while it is sent), and the box that says what went wrong when it was not saved |
+ | `src/tasks/book-slot/typedValues.ts` | What the user typed, read from the form when no answer came back, so nothing is lost |
+ | `src/components/site/SlotPicker.tsx` | "Choose a time": one radio button per slot, with "2 places left", "1 place left" or "Full" |
+@@ -85,18 +85,3 @@ These stay as they are, because they keep the task safe and honest for every use
+ - the made-up-data notice above the button, and the confirmation's exact words;
+ - `export const dynamic = 'force-dynamic'` on both pages;
+ - the tests: change their names and values to your content, and keep what they check.
+-
+-## W6: let the user choose repairs
+-
+-The repair choice is ready, switched off. After you add the `repairs` relationship to bookings (with
+-its migration):
+-
+-1. In `src/components/site/BookingForm.tsx`, remove the `//` in front of every line of the function
+-   `RepairChoice` (marked W6). Then replace the whole line
+-   `{/* W6: <RepairChoice repairs={props.repairs} /> */}` with `<RepairChoice repairs={props.repairs} />`.
+-   Each choice shows the repair's name; the price list sits above the form on the same page. To show
+-   each repair's price in the choice too, copy the two lines the comment above `const label` gives.
+-2. In `src/tasks/book-slot/createBooking.ts`, switch on the two lines the W6 comment in
+-   createBooking.ts names: remove the `//` in front of `const repairs = formData.getAll('repairs')…` and in front of `repairs,` in
+-   `payload.create`.
+-3. Save a booking with two repairs, and find it on each repair's page in /admin.
+diff --git a/src/tasks/book-slot/createBooking.ts b/src/tasks/book-slot/createBooking.ts
+index 4b5b5f7..4d52e25 100644
+--- a/src/tasks/book-slot/createBooking.ts
++++ b/src/tasks/book-slot/createBooking.ts
+@@ -174,10 +174,6 @@ async function checkAndSave(formData: FormData, context: BookingContext): Promis
+   // Which clinic's page the form is on, to check the time slot belongs to that clinic. Not saved.
+   const clinicSlug = read(formData, 'clinic')
+ 
+-  // W6: switch on the repair choice. Remove the // in front of the next line, and of `repairs,` in
+-  // payload.create below. It keeps only whole numbers, the ids of the repairs the user ticked.
+-  // const repairs = formData.getAll('repairs').map(Number).filter(Number.isInteger)
+-
+   // 1. The trap field. The message says only that the booking was not saved: a program that filled
+   // the trap learns nothing about why.
+   if (isTrapFilled(formData)) return { ok: false, message: NOT_SAVED_MESSAGE, values }
+@@ -215,7 +211,6 @@ async function checkAndSave(formData: FormData, context: BookingContext): Promis
+         requestId,
+         // The logged-in member, never anything the form sends: only with the members' area on.
+         member: membersAreaOn() ? context.member : undefined,
+-        // repairs,
+       },
+       overrideAccess: true,
+     })
+diff --git a/src/tasks/find-workshop/README.md b/src/tasks/find-workshop/README.md
+deleted file mode 100644
+index 41b707b..0000000
+--- a/src/tasks/find-workshop/README.md
++++ /dev/null
+@@ -1,78 +0,0 @@
+-# Example task 1: find a workshop by topic and level
+-
+-A user who wants to learn a bicycle repair opens **Workshops**, picks a topic and a level, and gets the
+-matching workshops. From a workshop they can open its topics; a topic's page lists every workshop on
+-that topic.
+-
+-## Where it lives
+-
+-| File | What it does |
+-|---|---|
+-| `src/tasks/find-workshop/filters.ts` | Reads the filters from the address (`?topic=…&level=…`), leaves out anything it cannot use, and says the result in words |
+-| `src/tasks/find-workshop/queries.ts` | Turns the filters into a question for the database (a Payload `where`) |
+-| `src/app/(site)/workshops/page.tsx` | The list page: the filter form, the result line and the cards |
+-| `src/app/(site)/workshops/[slug]/page.tsx` | One workshop's page, with a Back link to the same filtered list |
+-| `src/app/(site)/topics/[slug]/page.tsx` | One topic's page, listing its workshops from the other side of the link |
+-| `src/components/site/WorkshopFilters.tsx`, `WorkshopCard.tsx`, `TopicList.tsx`, `ParentLink.tsx` | The parts those pages are made of |
+-| `tests/unit/filters.test.ts`, `tests/integration/find-workshop.test.tsx` | The tests |
+-
+-## Why it is built this way
+-
+-- **The filters live in the web address.** The form uses `method="get"`, so choosing filters only
+-  changes the address. A filtered list can then be shared and bookmarked, Back returns to it, and it
+-  works without JavaScript.
+-- **An address can say anything.** Someone can type `?level=expert`, or follow an old link to a topic
+-  that was removed. The page leaves out what it cannot use and never crashes:
+-  - an empty value, such as `?topic=` (what the form sends for "All topics"), means no filter;
+-  - an unknown level, such as `?level=expert`, is ignored, so the list shows the workshops of every
+-    level (and the form shows "All levels");
+-  - an unknown topic, such as `?topic=unicycles`, gives an empty list with "No workshops match these
+-    filters" and a **Clear filters** link. It is not a "page not found": the list itself still exists.
+-
+-  Why the two differ: a level is one of a fixed set written in the code, so any other value can only
+-  be a typing mistake, and leaving it out is safe. A topic is a record an editor can rename or remove,
+-  so an unknown topic usually means an old link, and showing every workshop would pretend the topic
+-  still had them.
+-- **After "Apply filters" the page opens at the results** (`/workshops?…#results`), so on a phone the
+-  user sees them without scrolling past the form again.
+-- **An unknown workshop or topic page is a real "not found" (404)**: that page does not exist.
+-- **Every fact comes from one place.** A workshop's level, day, times, price and group size are its
+-  own fields; the place and the pricing rule are in the Site facts global (`/admin` → Site facts).
+-  The description is only words about what you learn, so a price changed in /admin is right
+-  everywhere at once.
+-
+-## Adapting it to your own site
+-
+-Say your site lists concerts, and users filter them by genre and by city.
+-
+-Change these three files:
+-
+-1. **`filters.ts`**: your filters and their allowed values. Rename `topic` to `genre`, and replace
+-   `LEVELS` with your own list (or check a city's slug the way a topic's slug is checked). Change
+-   `filterSummary` so the result line reads well ("Showing jazz concerts in Ghent — 3 concerts").
+-2. **`queries.ts`**: which field each filter checks. A many-to-many link (like a workshop's topics)
+-   uses `in`; a single choice (like the level) uses `equals`.
+-3. **`src/app/(site)/workshops/page.tsx`** (move it to your own address, for example
+-   `src/app/(site)/concerts/page.tsx`): the collection it reads, its title and intro, and which
+-   options the form offers.
+-
+-Then rename the components' labels ("Topic", "Level") and the card's facts in `WorkshopCard.tsx`.
+-
+-These stay as they are, because they make the task work for every user:
+-
+-- the plain GET form with a visible label above each field and an **Apply filters** button;
+-- reading the address carefully, and the empty result with **Clear filters**;
+-- the result line in words, which is also the browser tab's title (a screen reader reads it out when
+-  the page opens);
+-- the Back link that carries the filters (`filterQuery`);
+-- `export const dynamic = 'force-dynamic'` on each page, so an editor's change shows at once;
+-- the tests: change their names and values to your content, and keep what they check.
+-
+-## Updating a site that already has the example content
+-
+-The example content is added once per database. A database seeded before this task was added still
+-has the gear workshop's "It ends by 15:00 at the latest." as a sentence in its description, and no
+-"Ends at the latest" value. To bring it in line, open the workshop "Service a gear system" in /admin,
+-set **Ends at the latest** to 15:00, and delete that sentence from the description. (Or start from a
+-fresh database and seed it. `npm run seed -- --again` does not help here: it only adds records that
+-are missing, and never changes one that exists.)
+diff --git a/src/tasks/find-workshop/filters.ts b/src/tasks/find-workshop/filters.ts
+deleted file mode 100644
+index 12b2bf2..0000000
+--- a/src/tasks/find-workshop/filters.ts
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Reading the workshop filters from the web address, for example
+-// /workshops?topic=brakes-and-gears&level=beginner.
+-//
+-// Why the filters live in the address: a filtered list can then be shared and bookmarked, the browser's
+-// Back button returns to it, and the form works without JavaScript (a plain GET form only changes the
+-// address). The price of that: anyone can type anything into an address, and an old shared link may
+-// name a topic that no longer exists. So this file reads the address carefully and never throws: a
+-// value it cannot use is left out and reported in `unknown`, and the page shows what it can.
+-
+-// The two levels a workshop can have. The `level` field in src/collections/Workshops.ts offers exactly
+-// these, so a level is added or renamed here, once (with a migration for the field's new choices).
+-import { SLUG_FORMAT } from '../../collections/fields'
+-
+-export const LEVELS = ['beginner', 'intermediate'] as const
+-export type Level = (typeof LEVELS)[number]
+-
+-export type Filters = {
+-  topic: string | null
+-  level: Level | null
+-  // The names of the address's parts that were left out: a filter with a value this site does not
+-  // use (level=expert), or a part that is not a filter at all.
+-  unknown: string[]
+-}
+-
+-// What Next.js gives a page as its searchParams: each part once (a string), repeated (an array), or
+-// missing.
+-export type SearchParams = Record<string, string | string[] | undefined>
+-
+-// SLUG_FORMAT is the rule for a slug in /admin: lowercase letters and digits in groups joined by single
+-// hyphens. Anything else, such as "<script>", cannot be a topic's slug.
+-
+-// The first value when a part repeats (?topic=a&topic=b), without spaces around it.
+-function firstValue(value: string | string[] | undefined): string {
+-  const first = Array.isArray(value) ? value[0] : value
+-  return typeof first === 'string' ? first.trim().toLowerCase() : ''
+-}
+-
+-export function parseFilters(searchParams: SearchParams): Filters {
+-  const filters: Filters = { topic: null, level: null, unknown: [] }
+-  for (const [name, value] of Object.entries(searchParams ?? {})) {
+-    const text = firstValue(value)
+-    if (name === 'topic') {
+-      // An empty value means "All topics": that is what the form sends when no topic is chosen.
+-      if (SLUG_FORMAT.test(text) && text.length <= 100) filters.topic = text
+-      else if (text) filters.unknown.push(name)
+-    } else if (name === 'level') {
+-      if ((LEVELS as readonly string[]).includes(text)) filters.level = text as Level
+-      else if (text) filters.unknown.push(name)
+-    } else {
+-      filters.unknown.push(name)
+-    }
+-  }
+-  return filters
+-}
+-
+-/**
+- * The filters as the end of an address: "?topic=brakes-and-gears&level=beginner", or "" when there
+- * are none. Links from the list to a workshop carry it forward, so the workshop's "Back" link can
+- * return to the same filtered list (no JavaScript needed).
+- */
+-export function filterQuery({ topic, level }: Pick<Filters, 'topic' | 'level'>): string {
+-  const query = new URLSearchParams()
+-  if (topic) query.set('topic', topic)
+-  if (level) query.set('level', level)
+-  const text = query.toString()
+-  return text ? `?${text}` : ''
+-}
+-
+-/**
+- * The active filters and the number of results, in words: "Showing beginner workshops about Brakes and
+- * gears — 1 workshop". The list page shows it above the results and in the browser tab's title, so a
+- * screen reader announces it when the page opens.
+- */
+-export function filterSummary(level: Level | null, topicName: string | null, count: number): string {
+-  const which = level ? `${level} workshops` : topicName ? 'workshops' : 'all workshops'
+-  const about = topicName ? ` about ${topicName}` : ''
+-  return `Showing ${which}${about} — ${count} ${count === 1 ? 'workshop' : 'workshops'}`
+-}
+diff --git a/src/tasks/find-workshop/queries.ts b/src/tasks/find-workshop/queries.ts
+deleted file mode 100644
+index cb74f75..0000000
+--- a/src/tasks/find-workshop/queries.ts
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Turning the filters from the address into a question for the database: a Payload `where`.
+-//
+-// Why a separate file: the page then only asks for "the workshops that match these filters", and this
+-// small function can be tested without a database (tests/unit/filters.test.ts).
+-import type { Where } from 'payload'
+-import type { Filters } from './filters'
+-
+-/**
+- * Which workshops match the filters.
+- *
+- * topicId is the id of the topic whose slug is in the address, or null when no topic has that slug.
+- * An unknown slug matches no workshop at all (the list is then empty, with a way to clear the
+- * filters). It is not a "page not found": the address may come from an old shared link, and the
+- * workshop list itself still exists.
+- */
+-export function workshopWhere(filters: Pick<Filters, 'topic' | 'level'>, topicId: number | null): Where {
+-  const conditions: Where[] = []
+-  if (filters.topic) {
+-    // "topics" holds several topics per workshop (the many-to-many); `in` matches a workshop when the
+-    // topic is one of them. Every workshop has an id, so "has no id" matches none of them.
+-    conditions.push(topicId === null ? { id: { exists: false } } : { topics: { in: [topicId] } })
+-  }
+-  if (filters.level) conditions.push({ level: { equals: filters.level } })
+-  // No filters: an empty `where` matches every workshop.
+-  return conditions.length ? { and: conditions } : {}
+-}
+diff --git a/tests/integration/access.test.ts b/tests/integration/access.test.ts
+index 7eb3307..b51da70 100644
+--- a/tests/integration/access.test.ts
++++ b/tests/integration/access.test.ts
+@@ -82,20 +82,13 @@ describe('collection access', () => {
+     const p = await getTestPayload()
+     const options = { overrideAccess: false, user: editor }
+     const page = await p.create({ collection: 'pages', data: { title: 'Test page', slug: 'test-page' }, ...options })
+-    const examples: [CollectionSlug, number][] = []
+-    if (EXAMPLE.workshops) {
+-      const topic = await p.create({ collection: 'topics', data: { name: 'Test topic', slug: 'test-topic' }, ...options })
+-      const workshop = await p.create({ collection: 'workshops', data: { title: 'Test workshop', slug: 'test-workshop', level: 'beginner', day: 'Tuesday', startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.', topics: [topic.id] }, ...options })
+-      examples.push(['workshops', workshop.id], ['topics', topic.id])
+-    }
+-    if (EXAMPLE.repairs) examples.push(['repairs', (await p.create({ collection: 'repairs', data: { name: 'Test repair', price: 5 }, ...options })).id])
+     const clinic = await p.create({ collection: 'clinics', data: { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday', startTime: '15:00', endTime: '17:00', summary: 'Test instance.' }, ...options })
+     const slot = await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: '2026-10-10T13:00:00Z', places: 2 }, ...options })
+     // A second editor account, so deleting `user` below never removes the last one (that is refused).
+     await p.create({ collection: 'users', data: { email: 'editor@campuscycle.example', password: 'test-password-0123456789' }, ...options })
+     const user = await p.create({ collection: 'users', data: { email: 'test@campuscycle.example', password: 'test-password-0123456789' }, ...options })
+     const booking = await p.create({ collection: 'bookings', data: { timeSlot: slot.id, name: 'Test Person', email: 'private@campuscycle.example' }, overrideAccess: true })
+-    const all: [CollectionSlug, number][] = [['bookings', booking.id], ['timeSlots', slot.id], ['clinics', clinic.id], ...examples, ['pages', page.id], ['users', user.id]]
++    const all: [CollectionSlug, number][] = [['bookings', booking.id], ['timeSlots', slot.id], ['clinics', clinic.id], ['pages', page.id], ['users', user.id]]
+     for (const [collection, id] of all) {
+       expect((await p.findByID({ collection, id, ...options })).id).toBe(id)
+       await expect(p.update({ collection, id, data: {}, ...options })).resolves.toHaveProperty('id', id)
+diff --git a/tests/integration/booking.test.ts b/tests/integration/booking.test.ts
+index 61a2561..605260a 100644
+--- a/tests/integration/booking.test.ts
++++ b/tests/integration/booking.test.ts
+@@ -185,19 +185,12 @@ describe('example task 2: book a clinic slot', () => {
+ 
+     it('saves only the whitelisted fields: member=1, repairs=… (before W6) and any other extra field are ignored', async () => {
+       const target = await slot(inDays(6))
+-      // After W6 the learner has switched the repairs on (bookings.repairs and the two createBooking
+-      // lines): then the ticked repairs are saved, so they must be real ones.
+-      const w6 = p.collections.bookings.config.flattenedFields.some((field) => field.name === 'repairs')
+-      const repairIds = w6
+-        ? [(await p.create({ collection: 'repairs', data: { name: 'Check', price: 10 } })).id, (await p.create({ collection: 'repairs', data: { name: 'Full service', price: 45 } })).id]
+-        : [1, 2]
+-      const result = await book({ timeSlot: String(target.id), member: '1', repairs: repairIds.map(String), createdAt: '2000-01-01T00:00:00Z', id: '999' })
++      const result = await book({ timeSlot: String(target.id), member: '1', repairs: ['1', '2'], createdAt: '2000-01-01T00:00:00Z', id: '999' })
+       expect(result.ok).toBe(true)
+       const [saved] = await rows()
+       // member exists for the optional members' area, but the form can never fill it in.
+       expect(saved.member ?? null).toBeNull()
+-      if (w6) expect((saved as unknown as { repairs: unknown }).repairs).toEqual(repairIds)
+-      else expect(saved).not.toHaveProperty('repairs')
++      expect(saved).not.toHaveProperty('repairs')
+       expect(saved.id).not.toBe(999)
+       expect(saved.createdAt).not.toMatch(/^2000/)
+     })
+@@ -359,10 +352,6 @@ describe('example task 2: book a clinic slot', () => {
+       await slot(new Date(Date.now() - DAY))
+       await book({ timeSlot: String(second.id), name: 'Private Booker', email: 'private@campuscycle.example', note: 'Private note' })
+       await book({ timeSlot: String(third.id) })
+-      if (EXAMPLE.repairs) {
+-        await p.create({ collection: 'repairs', data: { name: 'Check', price: 10 } })
+-        await p.create({ collection: 'repairs', data: { name: 'Full service', price: 45, description: 'Everything checked and adjusted.' } })
+-      }
+       const html = await clinicPage()
+       expect(html).toContain('<h1')
+       expect(html).toContain('Test clinic')
+@@ -377,8 +366,6 @@ describe('example task 2: book a clinic slot', () => {
+       // A full slot stays visible but cannot be chosen.
+       expect(html).toMatch(new RegExp(`<input[^>]*disabled=""[^>]*value="${third.id}"|<input[^>]*value="${third.id}"[^>]*disabled=""`))
+       expect(html).toMatch(new RegExp(`<input(?![^>]*disabled)[^>]*value="${first.id}"`))
+-      // The price list, from the repair records, above the form; a description only where one exists.
+-      if (EXAMPLE.repairs) expect(html).toMatch(/Check.*EUR 10.*Full service.*Everything checked and adjusted\..*EUR 45.*<form/s)
+       // The form: the time group, persistent labels with required/optional in words, the notice, the button.
+       expect(html).toMatch(/<fieldset[^>]*>.*<legend[^>]*>.*Choose a time/s)
+       // The error box's links: "#timeSlot" goes to the whole group (its legend stays in view), and a
+diff --git a/tests/integration/course-check.test.ts b/tests/integration/course-check.test.ts
+index ea0bd02..9cfea97 100644
+--- a/tests/integration/course-check.test.ts
++++ b/tests/integration/course-check.test.ts
+@@ -6,7 +6,7 @@ import type { PoolClient } from 'pg'
+ import { getPayload, type Payload } from 'payload'
+ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+ import * as route from '../../src/app/api/course-check/route'
+-import { hasRepairsRelation, hasWhatToBringList, type FieldShape, type TeamSection } from '../../src/lib/courseCheck'
++import { type FieldShape, type TeamSection } from '../../src/lib/courseCheck'
+ import { courseCheckResponse } from '../../src/lib/courseCheckResponse'
+ import { allowRequest } from '../../src/tasks/book-slot/guards'
+ import { afterW6Config, collections as fixtureCollections, type Shape } from '../fixtures/config-after-w6'
+@@ -108,7 +108,6 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
+     expect((await fixtureCollections('shipped')).map((collection) => collection.slug)).toEqual(appSlugs)
+     expect(fieldsOf(p, 'clinics').some((field) => field.name === 'whatToBring')).toBe(false)
+     expect(fieldsOf(p, 'bookings').some((field) => field.name === 'repairs')).toBe(false)
+-    if (EXAMPLE.repairs) expect((p.collections.repairs.config.flattenedFields as readonly FieldShape[]).some((field) => field.name === 'bookings')).toBe(false)
+   })
+ 
+   it('a clinic whose summary holds the code: clinic yes, no list (before W5), no booking (before W6)', async () => {
+@@ -304,39 +303,6 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
+     expect((await teamOf(response)).transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: 'name', newest: { id: String(mine.id), createdAt: new Date(mine.createdAt).toISOString() } })
+   })
+ 
+-  it.runIf(EXAMPLE.repairs)("team: reads the team's own config: another collection, a name field that is not text, a missing collection", async () => {
+-    const clinic = await addClinic(p, 'Code BW-7F3K.')
+-    const repair = await p.create({ collection: 'repairs', data: { name: 'Flat tyre K7Q2', price: 10 } })
+-    await addBooking(p, clinic.id, 'Mina K7Q2')
+-    const withConfig = (transactional: { collection: string; nameField?: string }) => (incoming: Request) =>
+-      courseCheckResponse(incoming, { payload: p, teamConfig: { transactional } })
+-    const repairs = await teamOf(await withConfig({ collection: 'repairs', nameField: 'name' })(request('?include=team&code=K7Q2')))
+-    expect(repairs.transactional).toEqual({ collection: 'repairs', status: 'ok', codeField: 'name', newest: { id: String(repair.id), createdAt: new Date(repair.createdAt).toISOString() } })
+-    // `price` is a number: it is never searched, and the newest repair answers all the same.
+-    const byPrice = await teamOf(await withConfig({ collection: 'repairs', nameField: 'price' })(request('?include=team&code=K7Q2')))
+-    expect(byPrice.transactional).toEqual({ collection: 'repairs', status: 'ok', codeField: null, newest: { id: String(repair.id), createdAt: new Date(repair.createdAt).toISOString() } })
+-    const missing = await teamOf(await withConfig({ collection: 'orders' })(request('?include=team')))
+-    expect(missing.transactional).toEqual({ collection: 'orders', status: 'missing', codeField: null, newest: null })
+-  })
+-
+-  it.runIf(EXAMPLE.repairs && EXAMPLE.workshops)('team: a collection that cannot be read answers null or unreadable, the rest still answers, and the log has the details', async () => {
+-    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+-    const problem = new Error('relation "repairs" does not exist (secret detail)')
+-    const count = p.count.bind(p)
+-    vi.spyOn(p, 'count').mockImplementation(((args: Parameters<Payload['count']>[0]) => (args.collection === 'repairs' ? Promise.reject(problem) : count(args))) as never)
+-    const find = p.find.bind(p)
+-    vi.spyOn(p, 'find').mockImplementation(((args: Parameters<Payload['find']>[0]) => (args.collection === 'bookings' ? Promise.reject(problem) : find(args))) as never)
+-    const response = await answer(request('?include=team'))
+-    const body = await response.clone().text()
+-    const team = await teamOf(response)
+-    expect(team.collections.find((collection) => collection.slug === 'repairs')?.count).toBeNull()
+-    expect(team.collections.find((collection) => collection.slug === 'topics')?.count).toBe(0)
+-    expect(team.transactional).toEqual({ collection: 'bookings', status: 'unreadable', codeField: null, newest: null })
+-    expect(body.includes('secret detail')).toBe(false)
+-    expect(log).toHaveBeenCalledWith('The course check could not count the collection repairs:', problem)
+-    expect(log).toHaveBeenCalledWith('The course check could not read the collection bookings:', problem)
+-  })
+-
+   it('the route itself answers the team section from the app, with the starter config (bookings)', async () => {
+     const team = await teamOf(await route.GET(request('?include=team')))
+     expect(team.transactional.collection).toBe('bookings')
+@@ -375,138 +341,3 @@ async function closeFixture(base: Payload, fixture: Payload | undefined, schema:
+ }
+ 
+ const fieldsOf = (p: Payload, slug: 'clinics' | 'bookings') => p.collections[slug].config.flattenedFields as readonly FieldShape[]
+-
+-describe.runIf(EXAMPLE.repairs && EXAMPLE.workshops)('the course check after W5 and W6 (tests/fixtures/config-after-w6.ts)', () => {
+-  const schema = 'course_check_after_w6'
+-  let base: Payload
+-  let p: Payload
+-  let repairIds: number[]
+-  const check = async (query: string) => seen(await courseCheckResponse(request(query), { payload: p }))
+-
+-  beforeAll(async () => {
+-    base = await getTestPayload()
+-    p = await openFixture(base, 'agreed', schema)
+-  }, 120_000)
+-  beforeEach(async () => {
+-    for (const slug of clean) await p.db.deleteMany({ collection: slug as never, where: { id: { exists: true } } })
+-    repairIds = []
+-    for (const name of ['Flat tyre', 'Brake check', 'Chain']) {
+-      repairIds.push((await p.create({ collection: 'repairs', data: { name, price: 10 } })).id as number)
+-    }
+-  })
+-  afterAll(() => closeFixture(base, p, schema))
+-
+-  it('is the app with only the two W5/W6 fields added, in the agreed shapes', async () => {
+-    const appSlugs = base.config.collections.map((collection) => collection.slug).filter((slug) => !slug.startsWith('payload-'))
+-    expect((await fixtureCollections('agreed')).map((collection) => collection.slug)).toEqual(appSlugs)
+-    expect(hasWhatToBringList(fieldsOf(p, 'clinics'))).toBe(true)
+-    expect(hasRepairsRelation(fieldsOf(p, 'bookings'))).toBe(true)
+-    // Each field once, also when the app has it itself (a learner's copy after W5 and W6).
+-    for (const [slug, name] of [['clinics', 'whatToBring'], ['bookings', 'repairs']] as const) {
+-      expect(fieldsOf(p, slug).filter((field) => field.name === name), `${slug}.${name}`).toHaveLength(1)
+-    }
+-  })
+-
+-  it("answers the clinic's list and yes for a booking with the code and two repairs", async () => {
+-    const clinic = await addClinic(p, 'Saturday repair clinic. Code BW-7F3K.', { whatToBring: [{ item: 'your bike' }, { item: 'a lock' }] })
+-    const booking = await addBooking(p, clinic.id as number, 'Mina BW-7F3K', { repairs: repairIds.slice(0, 2) })
+-    expect(await check('?code=bw-7f3k')).toEqual(ok(true, ['your bike', 'a lock'], true))
+-    // The reverse side W6 adds (repairs.bookings) shows the booking; the route itself never reads it.
+-    const repair = await p.findByID({ collection: 'repairs', id: repairIds[0], depth: 0 })
+-    expect((repair as unknown as { bookings: { docs: unknown[] } }).bookings.docs).toEqual([booking.id])
+-  })
+-
+-  it("answers the same for the course app's team code, only as a whole token", async () => {
+-    const clinic = await addClinic(p, 'Team T29-7G6N, Saturday.', { whatToBring: [{ item: 'your bike' }] })
+-    await addBooking(p, clinic.id as number, 'Team T29-7G6NX', { repairs: repairIds.slice(0, 2) })
+-    expect(await check('?code=T29-7G6N')).toEqual(ok(true, ['your bike'], false))
+-    await addBooking(p, clinic.id as number, 'Team T29-7G6N', { repairs: repairIds.slice(0, 2) })
+-    expect(await check('?code=t29-7g6n')).toEqual(ok(true, ['your bike'], true))
+-  })
+-
+-  it('answers no for a booking with only one repair, or without the code in its name', async () => {
+-    const clinic = await addClinic(p, 'Code BW-7F3K.', { whatToBring: [{ item: 'your bike' }] })
+-    await addBooking(p, clinic.id as number, 'Mina BW-7F3K', { repairs: [repairIds[0]] })
+-    await addBooking(p, clinic.id as number, 'Mina BW-7F3KX', { repairs: repairIds })
+-    await addBooking(p, clinic.id as number, 'Somebody else', { repairs: repairIds })
+-    expect(await check('?code=BW-7F3K')).toEqual(ok(true, ['your bike'], false))
+-  })
+-
+-  it('reads the most recently updated clinic with the code, and [] for a list with no rows', async () => {
+-    const older = await addClinic(p, 'Code BW-7F3K.', { whatToBring: [{ item: 'your bike' }, { item: 'a lock' }] })
+-    await addClinic(p, 'Code BW-7F3K, the second one.', { whatToBring: [{ item: 'a pump' }] })
+-    await addClinic(p, 'No code here.', { whatToBring: [{ item: 'not this one' }] })
+-    expect(await check('?code=BW-7F3K')).toEqual(ok(true, ['a pump'], false))
+-    await new Promise((resolve) => setTimeout(resolve, 5))
+-    await p.update({ collection: 'clinics', id: older.id, data: { whatToBring: [{ item: 'a helmet' }, { item: 'your bike' }] } as never })
+-    expect(await check('?code=BW-7F3K')).toEqual(ok(true, ['a helmet', 'your bike'], false))
+-    await new Promise((resolve) => setTimeout(resolve, 5))
+-    await p.update({ collection: 'clinics', id: older.id, data: { whatToBring: [] } as never })
+-    expect(await check('?code=BW-7F3K')).toEqual(ok(true, [], false))
+-  })
+-
+-  it('without a code: the newest clinic and any booking with two repairs', async () => {
+-    expect(await check('')).toEqual(ok(false, null, false))
+-    await addClinic(p, 'Last term.', { whatToBring: [{ item: 'an old list' }] })
+-    await new Promise((resolve) => setTimeout(resolve, 5))
+-    const clinic = await addClinic(p, 'Saturday repair clinic.', { whatToBring: [{ item: 'your bike' }, { item: 'a lock' }] })
+-    await addBooking(p, clinic.id as number, 'Somebody', { repairs: [repairIds[0]] })
+-    expect(await check('')).toEqual(ok(true, ['your bike', 'a lock'], false))
+-    await addBooking(p, clinic.id as number, 'Somebody else', { repairs: repairIds.slice(1) })
+-    expect(await check('')).toEqual(ok(true, ['your bike', 'a lock'], true))
+-  })
+-
+-  it('never answers with a name, an e-mail address, a note or an id', async () => {
+-    const clinic = await addClinic(p, 'Code BW-7F3K.', { whatToBring: [{ item: 'your bike' }, { item: 'a lock' }] })
+-    const booking = await addBooking(p, clinic.id as number, 'Mina Peeters BW-7F3K', { repairs: repairIds })
+-    for (const query of ['?code=BW-7F3K', '']) {
+-      const body = (await check(query)).body
+-      const parsed = JSON.parse(body) as Record<string, unknown>
+-      expect(Object.keys(parsed), query).toEqual(['clinic', 'whatToBring', 'booking'])
+-      expect(parsed, query).toEqual({ clinic: true, whatToBring: ['your bike', 'a lock'], booking: true })
+-      for (const secret of ['Mina', 'mina.peeters', '@', 'Back brake', `"id"`, String(booking.id), String(clinic.id)]) {
+-        expect(body.includes(secret), `${query}: ${secret}`).toBe(false)
+-      }
+-    }
+-  })
+-
+-  it("team: W6's many-to-many shows with its join, and the team section holds no name, e-mail address or note", async () => {
+-    const clinic = await addClinic(p, 'Code BW-7F3K.', { whatToBring: [{ item: 'your bike' }] })
+-    const booking = await addBooking(p, clinic.id as number, 'Mina Peeters BW-7F3K', { repairs: repairIds })
+-    for (const query of ['?include=team&code=BW-7F3K', '?include=team']) {
+-      const response = await courseCheckResponse(request(query), { payload: p })
+-      const body = await response.clone().text()
+-      const team = await teamOf(response)
+-      expect(team.manyToMany, query).toEqual([
+-        { from: 'workshops', field: 'topics', to: 'topics', join: 'workshops' },
+-        { from: 'bookings', field: 'repairs', to: 'repairs', join: 'bookings' },
+-      ])
+-      expect(team.collections.find((collection) => collection.slug === 'repairs')?.count, query).toBe(3)
+-      expect(team.transactional.newest, query).toEqual({ id: String(booking.id), createdAt: new Date(booking.createdAt).toISOString() })
+-      for (const secret of ['Mina', 'mina.peeters', '@', 'Back brake', 'Flat tyre', 'your bike']) {
+-        expect(JSON.stringify(team).includes(secret), `${query}: ${secret}`).toBe(false)
+-      }
+-      expect(body.includes('mina.peeters'), query).toBe(false)
+-    }
+-  })
+-})
+-
+-describe.runIf(EXAMPLE.repairs)('the course check with the two fields in another shape', () => {
+-  const schema = 'course_check_other_shape'
+-  let base: Payload
+-  let p: Payload
+-
+-  beforeAll(async () => {
+-    base = await getTestPayload()
+-    p = await openFixture(base, 'other', schema)
+-  }, 120_000)
+-  afterAll(() => closeFixture(base, p, schema))
+-
+-  it('a textarea list answers null, and a link to one repair only answers no', async () => {
+-    const clinic = await addClinic(p, 'Code BW-7F3K.', { whatToBring: 'your bike, a lock' })
+-    const repair = await p.create({ collection: 'repairs', data: { name: 'Flat tyre', price: 10 } })
+-    await addBooking(p, clinic.id as number, 'Mina BW-7F3K', { repairs: repair.id })
+-    expect(await seen(await courseCheckResponse(request('?code=BW-7F3K'), { payload: p }))).toEqual(ok(true, null, false))
+-    expect(await seen(await courseCheckResponse(request(''), { payload: p }))).toEqual(ok(true, null, false))
+-  })
+-})
+diff --git a/tests/integration/find-workshop.test.tsx b/tests/integration/find-workshop.test.tsx
+deleted file mode 100644
+index 8d8455e..0000000
+--- a/tests/integration/find-workshop.test.tsx
++++ /dev/null
+@@ -1,237 +0,0 @@
+-// Example task 1, "find a workshop by topic and level", rendered the way the server renders it, on
+-// the test database filled by the real seed. Each page is an async server component: the test awaits
+-// it with the address's parts (params, searchParams) and turns the result into HTML.
+-import { readdirSync, rmSync } from 'node:fs'
+-import path from 'node:path'
+-import { renderToString } from 'react-dom/server'
+-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+-import type { Payload } from 'payload'
+-import { seed } from '../../src/seed/seed'
+-import { CAMPUS_CYCLE, SITE_NAME } from '../../src/content/campus-cycle'
+-import { forgetExampleAdded, getTestPayload, resetCollections, resetSiteFacts } from '../setup/payload'
+-import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
+-import { trackSteps } from '../setup/elements'
+-import WorkshopsPage, { generateMetadata as listMetadata } from '../../src/app/(site)/workshops/page'
+-import WorkshopPage, { generateMetadata as workshopMetadata } from '../../src/app/(site)/workshops/[slug]/page'
+-import TopicPage, { generateMetadata as topicMetadata } from '../../src/app/(site)/topics/[slug]/page'
+-import { tabTitle } from '../setup/title'
+-
+-// These tests delete every example record: never on a real database.
+-refuseUnlessThrowAwayTestDatabase()
+-
+-const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages', 'media', 'users']
+-
+-async function resetAll(p: Payload) {
+-  await resetCollections(clean)
+-  await forgetExampleAdded()
+-  await resetSiteFacts()
+-  const folder = String(p.collections.media.config.upload.staticDir)
+-  for (const name of readdirSync(folder)) rmSync(path.join(folder, name), { recursive: true, force: true })
+-}
+-
+-type Query = Record<string, string | string[] | undefined>
+-const list = async (query: Query = {}) => {
+-  const props = { searchParams: Promise.resolve(query) }
+-  return { html: renderToString(await WorkshopsPage(props)), title: await tabTitle(listMetadata(props)) }
+-}
+-const workshop = async (slug: string, query: Query = {}) =>
+-  renderToString(await WorkshopPage({ params: Promise.resolve({ slug }), searchParams: Promise.resolve(query) }))
+-const topic = async (slug: string) => renderToString(await TopicPage({ params: Promise.resolve({ slug }) }))
+-
+-// The workshops a page links to, by slug: one link per card (the card's title).
+-const listed = (html: string) => [...new Set([...html.matchAll(/href="\/workshops\/([a-z0-9-]+)/g)].map(([, slug]) => slug))].sort()
+-
+-// What Next.js's notFound() throws: an error whose "digest" says what to do.
+-async function digestOf(promise: Promise<unknown>): Promise<string> {
+-  try {
+-    await promise
+-  } catch (error) {
+-    return String((error as { digest?: string }).digest)
+-  }
+-  return 'no error thrown'
+-}
+-
+-describe('example task 1: find a workshop by topic and level', () => {
+-  let p: Payload
+-
+-  beforeAll(async () => {
+-    p = await getTestPayload()
+-    await resetAll(p)
+-    await seed(p, { env: {} })
+-  })
+-  afterAll(async () => resetAll(p))
+-
+-  it('/workshops lists every workshop, with a plain GET form whose fields have visible labels', async () => {
+-    const { html, title } = await list()
+-    expect(listed(html)).toEqual(['adjust-your-brakes', 'repair-a-puncture', 'service-a-gear-system', 'true-a-wheel'])
+-    expect(html).toContain('Showing all workshops — 4 workshops')
+-    expect(title).toBe(`Workshops · ${SITE_NAME}`)
+-    // A plain form: it works without JavaScript, and its choices end up in the address.
+-    // #results: after Apply filters the browser scrolls to the results, so a phone user sees them
+-    // straight away instead of the top of the page again.
+-    expect(html).toMatch(/<form[^>]*action="\/workshops#results"[^>]*method="get"/)
+-    expect(html).toMatch(/<section[^>]*id="results"/)
+-    expect(html).toMatch(/<label[^>]*for="filter-topic"[^>]*>Topic<\/label>/)
+-    expect(html).toMatch(/<label[^>]*for="filter-level"[^>]*>Level<\/label>/)
+-    expect(html).toMatch(/<select[^>]*id="filter-topic"[^>]*name="topic"/)
+-    expect(html).toMatch(/<select[^>]*id="filter-level"[^>]*name="level"/)
+-    expect(html).toContain('All topics')
+-    expect(html).toContain('All levels')
+-    expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Apply filters<\/button>/)
+-    // Nothing to clear yet.
+-    expect(html).not.toContain('Clear filters')
+-    // The count sits in a status region, so a change is read out.
+-    expect(html).toMatch(/role="status"[^>]*><h2[^>]*>Showing all workshops/)
+-    // The topic chips are one row that wraps, below their label, not one chip per row.
+-    expect(html).toMatch(/<div class="grid gap-2"><span[^>]*>Topics<\/span><ul class="flex flex-wrap/)
+-  })
+-
+-  it('?topic=brakes-and-gears&level=beginner lists only Adjust your brakes, and says so in words and in the tab title', async () => {
+-    const { html, title } = await list({ topic: 'brakes-and-gears', level: 'beginner' })
+-    expect(listed(html)).toEqual(['adjust-your-brakes'])
+-    expect(html).toContain('Showing beginner workshops about Brakes and gears — 1 workshop')
+-    expect(title).toBe(`Showing beginner workshops about Brakes and gears — 1 workshop · ${SITE_NAME}`)
+-    // The form shows the chosen filters, and offers to clear them.
+-    expect(html).toMatch(/<option[^>]*value="brakes-and-gears" selected="">Brakes and gears<\/option>/)
+-    expect(html).toMatch(/<option[^>]*value="beginner" selected="">Beginner<\/option>/)
+-    expect(html).toMatch(/href="\/workshops"[^>]*>Clear filters</)
+-    // The card's link carries the filters forward, for the workshop page's Back link.
+-    expect(html).toContain('href="/workshops/adjust-your-brakes?topic=brakes-and-gears&amp;level=beginner"')
+-  })
+-
+-  it('an empty value is no filter: "All topics" sends ?topic=', async () => {
+-    const { html } = await list({ topic: '', level: 'beginner' })
+-    expect(listed(html)).toEqual(['adjust-your-brakes', 'repair-a-puncture'])
+-    expect(html).toContain('Showing beginner workshops — 2 workshops')
+-  })
+-
+-  it('counts the analytics step "filter_used" only when filters were applied, with the level and a topic this site has', async () => {
+-    const steps = async (query: Query) => trackSteps(await WorkshopsPage({ searchParams: Promise.resolve(query) }))
+-    expect(await steps({})).toEqual([])
+-    expect(await steps({ topic: '' })).toEqual([])
+-    expect(await steps({ topic: 'brakes-and-gears', level: 'beginner' })).toEqual([
+-      { event: 'filter_used', props: { topic: 'brakes-and-gears', level: 'beginner' }, once: '?topic=brakes-and-gears&level=beginner' },
+-    ])
+-    expect(await steps({ level: 'intermediate' })).toEqual([{ event: 'filter_used', props: { topic: '', level: 'intermediate' }, once: '?level=intermediate' }])
+-    // Whatever someone typed into the address is never sent: an unknown topic goes as ''. (`once` stays
+-    // in the browser tab, to count each choice once; it is never sent.)
+-    expect(await steps({ topic: 'my-own-words' })).toEqual([{ event: 'filter_used', props: { topic: '', level: '' }, once: '?topic=my-own-words' }])
+-  })
+-
+-  it('each filter works on its own too', async () => {
+-    expect(listed((await list({ topic: 'tyres-and-wheels' })).html)).toEqual(['repair-a-puncture', 'true-a-wheel'])
+-    expect(listed((await list({ level: 'intermediate' })).html)).toEqual(['service-a-gear-system', 'true-a-wheel'])
+-  })
+-
+-  it('?topic=unknown&level=expert: "No workshops match these filters" and a Clear filters link, not a crash or a 404', async () => {
+-    const { html, title } = await list({ topic: 'unknown', level: 'expert' })
+-    expect(listed(html)).toEqual([])
+-    expect(html).toContain('No workshops match these filters')
+-    expect(html).toContain('This site has no topic called &quot;unknown&quot;. The link may be out of date.')
+-    expect(html).toMatch(/href="\/workshops"[^>]*>Clear filters</)
+-    expect(title).toBe(`No workshops match these filters · ${SITE_NAME}`)
+-  })
+-
+-  it('an odd address is left out, never a crash: a repeated topic, a script, parts that are not filters', async () => {
+-    expect(listed((await list({ topic: ['tyres-and-wheels', 'brakes-and-gears'] })).html)).toEqual(['repair-a-puncture', 'true-a-wheel'])
+-    const { html } = await list({ topic: '<script>alert(1)</script>', utm_source: 'mail' })
+-    expect(listed(html)).toHaveLength(4)
+-    expect(html).not.toContain('<script>alert(1)')
+-  })
+-
+-  it('/workshops/true-a-wheel shows its facts from its own fields and the Site facts global, and links to its topic', async () => {
+-    const html = await workshop('true-a-wheel')
+-    expect(html).toContain('<h1')
+-    expect(html).toContain('True a wheel')
+-    expect(html).toContain('Thursday from 19:00')
+-    expect(html).toContain('EUR 25')
+-    expect(html).toContain('Intermediate')
+-    expect(html).toContain('At most 6 people')
+-    // Shared facts, from the global (one source per fact).
+-    expect(html).toContain(CAMPUS_CYCLE.place)
+-    expect(html).toContain('Bring your own parts and pay EUR 5 less per bicycle.')
+-    // Its description, in words.
+-    expect(html).toContain('truing stand')
+-    // Its topic, linked to the topic's page.
+-    expect(html).toMatch(/href="\/topics\/tyres-and-wheels"[^>]*>Tyres and wheels</)
+-    // Its parent, without a made-up path through a topic.
+-    expect(html).toMatch(/<nav aria-label="Breadcrumb"[^>]*>.*href="\/workshops"[^>]*>Workshops<.*aria-current="page"[^>]*>True a wheel</)
+-    expect(await tabTitle(workshopMetadata({ params: Promise.resolve({ slug: 'true-a-wheel' }), searchParams: Promise.resolve({}) }))).toBe(`True a wheel · ${SITE_NAME}`)
+-  })
+-
+-  it('the gear workshop says when it ends at the latest, from its latestEnd field', async () => {
+-    const html = await workshop('service-a-gear-system')
+-    // Non-breaking spaces keep "ends by 15:00" on one line.
+-    expect(html).toContain('Saturday from 13:00, ends\u00a0by\u00a015:00')
+-    await p.update({ collection: 'workshops', where: { slug: { equals: 'service-a-gear-system' } }, data: { latestEnd: '14:30' }, overrideAccess: true })
+-    try {
+-      const changed = await workshop('service-a-gear-system')
+-      expect(changed).toContain('ends\u00a0by\u00a014:30')
+-      expect(changed).not.toContain('15:00')
+-    } finally {
+-      await p.update({ collection: 'workshops', where: { slug: { equals: 'service-a-gear-system' } }, data: { latestEnd: '15:00' }, overrideAccess: true })
+-    }
+-  })
+-
+-  it('the Back link keeps the filters the user came with', async () => {
+-    const filtered = await workshop('adjust-your-brakes', { topic: 'brakes-and-gears', level: 'beginner' })
+-    expect(filtered).toMatch(/href="\/workshops\?topic=brakes-and-gears&amp;level=beginner"[^>]*>Back to the filtered workshops</)
+-    expect(filtered).toMatch(/aria-label="Breadcrumb"[^>]*>.*href="\/workshops\?topic=brakes-and-gears&amp;level=beginner"[^>]*>Workshops</)
+-    const plain = await workshop('adjust-your-brakes')
+-    expect(plain).toMatch(/href="\/workshops"[^>]*>Back to all workshops</)
+-    // A filter the site does not know is not carried back.
+-    expect(await workshop('adjust-your-brakes', { level: 'expert' })).toMatch(/href="\/workshops"[^>]*>Back to all workshops</)
+-  })
+-
+-  it('an unknown workshop or topic address gives the 404 page', async () => {
+-    expect(await digestOf(workshop('no-such-workshop'))).toBe('NEXT_HTTP_ERROR_FALLBACK;404')
+-    expect(await digestOf(topic('no-such-topic'))).toBe('NEXT_HTTP_ERROR_FALLBACK;404')
+-  })
+-
+-  it('/topics/tyres-and-wheels lists Repair a puncture and True a wheel: the reverse side of the many-to-many', async () => {
+-    const html = await topic('tyres-and-wheels')
+-    expect(listed(html)).toEqual(['repair-a-puncture', 'true-a-wheel'])
+-    expect(html).toContain('Tyres and wheels')
+-    expect(html).toContain('Fix a flat tyre')
+-    // The cards are as complete as on /workshops: a picture with a description, and every topic of
+-    // the workshop (Repair a puncture is also about Everyday maintenance).
+-    for (const alt of [...html.matchAll(/<img[^>]*alt="([^"]*)"/g)].map(([, text]) => text)) expect(alt.length).toBeGreaterThan(10)
+-    expect([...html.matchAll(/<img/g)]).toHaveLength(2)
+-    // In the join's order (oldest first), not in whatever order the second query returns.
+-    expect([...html.matchAll(/<h3[^>]*><a[^>]*href="\/workshops\/([a-z0-9-]+)/g)].map(([, slug]) => slug)).toEqual(['repair-a-puncture', 'true-a-wheel'])
+-    const puncture = html.slice(html.indexOf('href="/workshops/repair-a-puncture'), html.indexOf('href="/workshops/true-a-wheel'))
+-    expect(puncture).toContain('href="/topics/everyday-maintenance"')
+-    expect(html).toContain('href="/workshops?topic=tyres-and-wheels"')
+-    expect(await tabTitle(topicMetadata({ params: Promise.resolve({ slug: 'tyres-and-wheels' }) }))).toBe(`Tyres and wheels · Workshops · ${SITE_NAME}`)
+-    expect(listed(await topic('everyday-maintenance'))).toEqual(['adjust-your-brakes', 'repair-a-puncture'])
+-  })
+-
+-  it('one edit in /admin shows in the list, on the workshop page and on the topic page', async () => {
+-    await p.update({ collection: 'workshops', where: { slug: { equals: 'true-a-wheel' } }, data: { price: 27 }, overrideAccess: true })
+-    try {
+-      expect((await list()).html).toContain('EUR 27')
+-      expect(await workshop('true-a-wheel')).toContain('EUR 27')
+-      expect(await topic('tyres-and-wheels')).toContain('EUR 27')
+-    } finally {
+-      await p.update({ collection: 'workshops', where: { slug: { equals: 'true-a-wheel' } }, data: { price: 25 }, overrideAccess: true })
+-    }
+-  })
+-
+-  it('the place and the pricing rule on a workshop page follow the Site facts global', async () => {
+-    const before = await p.findGlobal({ slug: 'site-facts' })
+-    try {
+-      await p.updateGlobal({
+-        slug: 'site-facts',
+-        data: { place: 'Room 12 (changed by an editor)', pricingRule: 'Parts cost extra (changed by an editor).' },
+-        overrideAccess: true,
+-      })
+-      const html = await workshop('repair-a-puncture')
+-      expect(html).toContain('Room 12 (changed by an editor)')
+-      expect(html).toContain('Parts cost extra (changed by an editor).')
+-      expect(html).not.toContain(CAMPUS_CYCLE.place)
+-      expect(html).not.toContain('Bring your own parts')
+-    } finally {
+-      await p.updateGlobal({ slug: 'site-facts', data: { place: before.place, pricingRule: before.pricingRule }, overrideAccess: true })
+-    }
+-  })
+-})
+diff --git a/tests/integration/model-race.test.ts b/tests/integration/model-race.test.ts
+index c977801..fc93b3b 100644
+--- a/tests/integration/model-race.test.ts
++++ b/tests/integration/model-race.test.ts
+@@ -2,40 +2,29 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+ import pg from 'pg'
+ import { setTimeout } from 'node:timers/promises'
+ import { getTestPayload, resetCollections } from '../setup/payload'
+-import { EXAMPLE } from '../setup/example'
+ 
+ // PGlite serialises transactions. Only a real, isolated Postgres can establish these race results.
+ describe.runIf(process.env.CI_REAL_POSTGRES === '1')('database deletion restrictions under concurrent writes', () => {
+-  // The topics and workshops only while the site has them (tests/setup/example.ts).
+-  const clean = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.workshops ? ['workshops', 'topics'] : [])]
++  const clean = ['bookings', 'timeSlots', 'clinics']
+   beforeEach(() => resetCollections(clean))
+   afterAll(() => resetCollections(clean))
+ 
+-  const parents = ['clinics', 'time_slots', ...(EXAMPLE.workshops ? ['topics'] : [])] as ('clinics' | 'time_slots' | 'topics')[]
+-  for (const parent of parents) {
++  for (const parent of ['clinics', 'time_slots'] as const) {
+     it(`keeps ${parent} and its link when a child is being created during deletion`, async () => {
+       const p = await getTestPayload()
+       let id: number
+       let insert: string
+       let values: unknown[]
+-      if (parent === 'topics') {
+-        const topic = await p.create({ collection: 'topics', data: { name: 'Test topic', slug: 'test-topic' } })
+-        const workshop = await p.create({ collection: 'workshops', data: { title: 'Test workshop', slug: 'test-workshop', level: 'beginner', day: 'Tuesday', startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.' } })
+-        id = topic.id
+-        insert = 'insert into workshops_rels (parent_id, path, topics_id) values ($1, $2, $3)'
+-        values = [workshop.id, 'topics', id]
++      const clinic = await p.create({ collection: 'clinics', data: { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday', startTime: '15:00', endTime: '17:00', summary: 'Test instance.' } })
++      if (parent === 'clinics') {
++        id = clinic.id
++        insert = 'insert into time_slots (clinic_id, starts_at, places) values ($1, $2, $3)'
++        values = [id, '2026-10-10T13:00:00Z', 2]
+       } else {
+-        const clinic = await p.create({ collection: 'clinics', data: { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday', startTime: '15:00', endTime: '17:00', summary: 'Test instance.' } })
+-        if (parent === 'clinics') {
+-          id = clinic.id
+-          insert = 'insert into time_slots (clinic_id, starts_at, places) values ($1, $2, $3)'
+-          values = [id, '2026-10-10T13:00:00Z', 2]
+-        } else {
+-          const slot = await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: '2026-10-10T13:00:00Z', places: 2 } })
+-          id = slot.id
+-          insert = 'insert into bookings (time_slot_id, name, email) values ($1, $2, $3)'
+-          values = [id, 'Test Person', 'test@campuscycle.example']
+-        }
++        const slot = await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: '2026-10-10T13:00:00Z', places: 2 } })
++        id = slot.id
++        insert = 'insert into bookings (time_slot_id, name, email) values ($1, $2, $3)'
++        values = [id, 'Test Person', 'test@campuscycle.example']
+       }
+       const writer = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL })
+       const remover = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL })
+diff --git a/tests/integration/model.test.ts b/tests/integration/model.test.ts
+index 12ee9e8..659ff67 100644
+--- a/tests/integration/model.test.ts
++++ b/tests/integration/model.test.ts
+@@ -1,42 +1,15 @@
+ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+ import type { PostgresAdapter } from '@payloadcms/db-postgres'
+-import type { Payload } from 'payload'
+-import { hasRepairsRelation, hasWhatToBringList, type FieldShape } from '../../src/lib/courseCheck'
+ import { getTestPayload, resetCollections } from '../setup/payload'
+-import { EXAMPLE } from '../setup/example'
+ 
+-const fieldsOf = (p: Payload, slug: 'clinics' | 'bookings' | 'repairs') => p.collections[slug].config.flattenedFields as readonly FieldShape[]
+-
+-/** Which of the learners' own additions (W5's list, W6's relationship and its reverse side) the app has. */
+-function learnerAdditions(p: Payload) {
+-  const has = (slug: 'clinics' | 'bookings' | 'repairs', name: string) => slug in p.collections && fieldsOf(p, slug).some(f => f.name === name)
+-  return { whatToBring: has('clinics', 'whatToBring'), repairs: has('bookings', 'repairs'), reverse: has('repairs', 'bookings') }
+-}
+-
+-// The example's workshops, topics and repairs only while the site has them (tests/setup/example.ts):
+-// a copy without them (npm run remove-example) skips the tests about them.
+-const collections = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.workshops ? ['workshops', 'topics'] : []), ...(EXAMPLE.repairs ? ['repairs'] : []), 'pages']
+-export const workshopData = { title: 'Test workshop', slug: 'test-workshop', level: 'beginner' as const, day: 'Tuesday' as const, startTime: '18:30', price: 15, groupSize: 6, summary: 'Test instance.' }
++const collections = ['bookings', 'timeSlots', 'clinics', 'pages']
+ export const clinicData = { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday' as const, startTime: '15:00', endTime: '17:00', summary: 'Test instance. Code K7Q2.' }
+ 
+ describe('the content model', () => {
+   beforeEach(() => resetCollections(collections))
+   afterAll(() => resetCollections(collections))
+ 
+-  it.runIf(EXAMPLE.workshops)('stores many-to-many membership once and reads both directions', async () => {
+-    const p = await getTestPayload()
+-    const a = await p.create({ collection: 'topics', data: { name: 'Tyres', slug: 'tyres' } })
+-    const b = await p.create({ collection: 'topics', data: { name: 'Maintenance', slug: 'maintenance' } })
+-    const first = await p.create({ collection: 'workshops', data: { ...workshopData, topics: [a.id, b.id] } })
+-    await p.create({ collection: 'workshops', data: { ...workshopData, slug: 'second', topics: [b.id] } })
+-    const found = await p.findByID({ collection: 'topics', id: b.id, depth: 1 })
+-    expect(found.workshops?.docs).toHaveLength(2)
+-    expect((await p.findByID({ collection: 'workshops', id: first.id, depth: 1 })).topics).toHaveLength(2)
+-    await p.update({ collection: 'workshops', id: first.id, data: { topics: [a.id], title: 'Changed title' } })
+-    expect((await p.findByID({ collection: 'topics', id: b.id })).workshops?.docs).toHaveLength(1)
+-  })
+-
+-  it('keeps required relations, editor reverse bookings, and learner additions separate', async () => {
++  it('keeps required relations, and shows an editor the reverse bookings', async () => {
+     const p = await getTestPayload()
+     const clinic = await p.create({ collection: 'clinics', data: clinicData })
+     // The generated type requires places even though Payload supplies its default at runtime.
+@@ -48,46 +21,16 @@ describe('the content model', () => {
+     const found = await p.findByID({ collection: 'timeSlots', id: slot.id, depth: 1, user: editor })
+     expect(found.bookings?.docs?.map(b => typeof b === 'object' ? b.id : b)).toEqual([booking.id])
+     expect((await p.findByID({ collection: 'clinics', id: clinic.id })).timeSlots?.docs).toHaveLength(1)
+-    // The learners' own additions (W5, W6) are not in the starter (the template-only test below), but
+-    // they are in every learner's copy after W5 and W6: then they must have the agreed shapes.
+-    // bookings.member is the starter's own: it belongs to the optional members' area, which ships
+-    // switched off (tests/integration/members.test.ts).
+-    const additions = learnerAdditions(p)
+-    if (additions.whatToBring) expect(hasWhatToBringList(fieldsOf(p, 'clinics')), 'clinics.whatToBring (W5)').toBe(true)
+-    if (additions.repairs) expect(hasRepairsRelation(fieldsOf(p, 'bookings')), 'bookings.repairs (W6)').toBe(true)
+-    if (additions.reverse) {
+-      expect(fieldsOf(p, 'repairs').find(f => f.name === 'bookings'), 'repairs.bookings (W6)').toMatchObject({ type: 'join', collection: 'bookings', on: 'repairs' })
+-    }
+-  })
+-
+-  // The template as published: none of the learners' additions yet. Only in the maintainers' publish
+-  // steps (STARTER_TEMPLATE=1), because every learner's copy has them after W5 and W6.
+-  it.runIf(process.env.STARTER_TEMPLATE === '1')("in the template, none of the learners' additions (W5, W6) is there yet", async () => {
+-    expect(learnerAdditions(await getTestPayload())).toEqual({ whatToBring: false, repairs: false, reverse: false })
+   })
+ 
+-  it.runIf(EXAMPLE.workshops && EXAMPLE.repairs)('rejects invalid references, duplicate slugs and invalid numeric values', async () => {
++  it('rejects a time slot or a booking that links to a record that does not exist', async () => {
+     const p = await getTestPayload()
+-    await p.create({ collection: 'workshops', data: workshopData })
+-    await expect(p.create({ collection: 'workshops', data: workshopData })).rejects.toThrow()
+-    await expect(p.create({ collection: 'workshops', data: { ...workshopData, slug: 'bad-reference', topics: [999999] } })).rejects.toThrow()
+-    for (const data of [{ price: -1 }, { groupSize: 1.5 }, { groupSize: 0 }]) {
+-      await expect(p.create({ collection: 'workshops', data: { ...workshopData, slug: 'bad-number', ...data } })).rejects.toThrow()
+-    }
+     await expect(p.create({ collection: 'timeSlots', data: { clinic: 999999, startsAt: '2026-10-10T13:00:00Z', places: 2 } })).rejects.toThrow(/clinic no longer exists/)
+     await expect(p.create({ collection: 'bookings', data: { timeSlot: 999999, name: 'Test', email: 'test@campuscycle.example' } })).rejects.toThrow()
+-    await expect(p.create({ collection: 'repairs', data: { name: 'Test', price: -1 } })).rejects.toThrow()
+   })
+ 
+   it('requires explicit unlinking and does not delete a clinic or slot with dependent records', async () => {
+     const p = await getTestPayload()
+-    if (EXAMPLE.workshops) {
+-      const topic = await p.create({ collection: 'topics', data: { name: 'Test', slug: 'test' } })
+-      const workshop = await p.create({ collection: 'workshops', data: { ...workshopData, topics: [topic.id] } })
+-      await expect(p.delete({ collection: 'topics', id: topic.id })).rejects.toThrow('This topic is still used by workshops (see its Workshops list). Remove it from each workshop, then delete the topic.')
+-      await p.update({ collection: 'workshops', id: workshop.id, data: { topics: [] } })
+-      await p.delete({ collection: 'topics', id: topic.id })
+-    }
+     const clinic = await p.create({ collection: 'clinics', data: clinicData })
+     const slot = await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: '2026-10-10T13:00:00Z', places: 2 } })
+     const booking = await p.create({ collection: 'bookings', data: { timeSlot: slot.id, name: 'Test', email: 'test@campuscycle.example' } })
+@@ -114,19 +57,6 @@ describe('the content model', () => {
+     await expect(p.update({ collection: 'timeSlots', id: slot.id, data: { clinic: 999999 } })).rejects.toThrow(/clinic no longer exists/)
+   })
+ 
+-  it.runIf(EXAMPLE.workshops)('rejects a slug that is not lowercase letters, digits and hyphens, and explains a duplicate', async () => {
+-    const p = await getTestPayload()
+-    for (const slug of ['Repair a puncture', 'repair_a_puncture', 'Repair-A-Puncture', '-repair', 'repair-', 'repair--a']) {
+-      await expect(p.create({ collection: 'topics', data: { name: 'Test', slug } })).rejects.toMatchObject({ data: { errors: [{ path: 'slug', message: 'Use only lowercase letters, digits and hyphens, for example repair-a-puncture.' }] } })
+-    }
+-    await p.create({ collection: 'topics', data: { name: 'Test', slug: 'repair-a-puncture-2' } })
+-    await expect(p.create({ collection: 'topics', data: { name: 'Test', slug: 'repair-a-puncture-2' } })).rejects.toThrow('Another record already uses this slug. Choose a different one.')
+-  })
+-
+-  it.runIf(EXAMPLE.workshops)('explains a workshop image that no longer exists', async () => {
+-    const p = await getTestPayload()
+-    await expect(p.create({ collection: 'workshops', data: { ...workshopData, image: 999999 } })).rejects.toThrow('This image no longer exists. Choose another image.')
+-  })
+ })
+ 
+ // The hooks above give the friendly messages. These tests go AROUND the hooks, with plain SQL through
+@@ -136,7 +66,7 @@ describe('database restrictions without the hooks', () => {
+   beforeEach(() => resetCollections(collections))
+   afterAll(() => resetCollections(collections))
+ 
+-  async function deleteWithSql(table: 'clinics' | 'time_slots' | 'topics', id: number) {
++  async function deleteWithSql(table: 'clinics' | 'time_slots', id: number) {
+     const p = await getTestPayload()
+     const pool = (p.db as unknown as PostgresAdapter).pool
+     // The table names are a fixed list in this file; the id stays a query parameter.
+@@ -167,14 +97,6 @@ describe('database restrictions without the hooks', () => {
+     expect((await p.count({ collection: 'timeSlots' })).totalDocs).toBe(1)
+   })
+ 
+-  it.runIf(EXAMPLE.workshops)('refuses to delete a topic that a workshop still links to (SQLSTATE 23503 or 23001)', async () => {
+-    const p = await getTestPayload()
+-    const topic = await p.create({ collection: 'topics', data: { name: 'Test topic', slug: 'test-topic' } })
+-    const workshop = await p.create({ collection: 'workshops', data: { ...workshopData, topics: [topic.id] } })
+-    expect(await deleteWithSql('topics', topic.id)).toMatchObject(refusedBy('workshops_rels_topics_fk'))
+-    expect((await p.findByID({ collection: 'workshops', id: workshop.id, depth: 0 })).topics).toEqual([topic.id])
+-  })
+-
+   it('still deletes a parent with nothing linked to it (the restriction is not a blanket ban)', async () => {
+     const p = await getTestPayload()
+     const clinic = await p.create({ collection: 'clinics', data: clinicData })
+diff --git a/tests/integration/seed.test.ts b/tests/integration/seed.test.ts
+index af1319b..a0f293b 100644
+--- a/tests/integration/seed.test.ts
++++ b/tests/integration/seed.test.ts
+@@ -4,26 +4,22 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi, type MockIns
+ import { convertLexicalToHTML } from '@payloadcms/richtext-lexical/html'
+ import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical'
+ import type { Payload } from 'payload'
+-import { BOOKING_CONFIRMATION, CAMPUS_CYCLE, MADE_UP_DATA_NOTICE } from '../../src/content/campus-cycle'
++import { BOOKING_CONFIRMATION, MADE_UP_DATA_NOTICE } from '../../src/content/campus-cycle'
+ import { exampleWasAdded } from '../../src/seed/exampleFlag'
+ import { runSeed } from '../../src/seed/run'
+ import { NO_BLOB_STORE_MESSAGE, PAGES, seed } from '../../src/seed/seed'
+-import { EXAMPLE } from '../setup/example'
+ import { forgetExampleAdded, getTestPayload, resetCollections, resetSiteFacts } from '../setup/payload'
+ import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
++import { EXAMPLE } from '../setup/example'
+ 
+ // These tests delete every user and every example record: never on a real database.
+ refuseUnlessThrowAwayTestDatabase()
+ 
+-// This file tests the seed of the Campus Cycle example, with its workshops, topics and repairs. A copy
+-// without them (npm run remove-example) has a smaller seed, and these tests stand aside
+-// (tests/setup/example.ts). The fact sheet's own test runs only while the site is still Campus Cycle.
+-const describeExample = describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs)
+ 
+ // Children before parents: the database refuses to delete a parent that still has linked records.
+-const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages', 'media', 'users']
+-// 6 images + 3 topics + 4 workshops + 3 repairs + 4 pages + the Site facts global.
+-const ALL_RECORDS = 21
++const clean = ['bookings', 'timeSlots', 'clinics', 'pages', 'media', 'users']
++// 2 images + 4 pages + the Site facts global.
++const ALL_RECORDS = 7
+ 
+ // The test config stores uploads in a temporary folder (tests/setup/config.ts). Empty it together with
+ // the media records, so every test uploads the images afresh under their own file names.
+@@ -68,13 +64,13 @@ const FACT_SHEET = {
+   email: 'hello@campuscycle.example',
+ }
+ 
+-const count = async (p: Payload, collection: 'workshops' | 'topics' | 'repairs' | 'pages' | 'media' | 'users') =>
++const count = async (p: Payload, collection: 'pages' | 'media' | 'users') =>
+   (await p.count({ collection, overrideAccess: true })).totalDocs
+ 
+ async function countAll(p: Payload) {
+   const counts: Record<string, number> = {}
+   // One after the other: the in-memory test database serves one query at a time.
+-  for (const collection of ['workshops', 'topics', 'repairs', 'pages', 'media', 'users'] as const) {
++  for (const collection of ['pages', 'media', 'users'] as const) {
+     counts[collection] = await count(p, collection)
+   }
+   return counts
+@@ -82,13 +78,13 @@ async function countAll(p: Payload) {
+ 
+ const html = (value: unknown) => convertLexicalToHTML({ data: value as SerializedEditorState, disableContainer: true })
+ 
+-async function bySlug<T extends 'pages' | 'workshops' | 'topics'>(p: Payload, collection: T, slug: string) {
++async function bySlug<T extends 'pages'>(p: Payload, collection: T, slug: string) {
+   const found = await p.find({ collection, where: { slug: { equals: slug } }, depth: 1 })
+   expect(found.docs, `${collection} ${slug}`).toHaveLength(1)
+   return found.docs[0]
+ }
+ 
+-describeExample('the Campus Cycle seed', () => {
++describe('the Campus Cycle seed', () => {
+   beforeEach(resetAll)
+   afterAll(resetAll)
+ 
+@@ -98,93 +94,17 @@ describeExample('the Campus Cycle seed', () => {
+     expect(await seed(p)).toEqual({ created: 0, skipped: ALL_RECORDS })
+     const counts: Record<string, number> = {}
+     // One after the other: the in-memory test database serves one query at a time.
+-    for (const collection of ['workshops', 'topics', 'repairs', 'pages', 'media', 'clinics', 'timeSlots', 'bookings'] as const) {
++    for (const collection of ['pages', 'media', 'clinics', 'timeSlots', 'bookings'] as const) {
+       counts[collection] = (await p.count({ collection })).totalDocs
+     }
+-    expect(counts).toEqual({ workshops: 4, topics: 3, repairs: 3, pages: 4, media: 6, clinics: 0, timeSlots: 0, bookings: 0 })
++    expect(counts).toEqual({ pages: 4, media: 2, clinics: 0, timeSlots: 0, bookings: 0 })
+     // The upload folder holds each image once: the second run uploaded nothing.
+-    expect(readdirSync(uploadFolder(p)).sort()).toEqual([
+-      'adjust-your-brakes.jpg',
+-      'clinic-tools.jpg',
+-      'repair-a-puncture.jpg',
+-      'service-a-gear-system.jpg',
+-      'true-a-wheel.jpg',
+-      'workshop-tools.jpg',
+-    ])
+-  })
+-
+-  it('stores the workshops exactly as in CAMPUS_CYCLE; only the puncture workshop has an end time', async () => {
+-    const p = await getTestPayload()
+-    await seed(p)
+-    for (const fact of CAMPUS_CYCLE.workshops) {
+-      const workshop = await bySlug(p, 'workshops', fact.slug)
+-      expect(workshop).toMatchObject({
+-        title: fact.title,
+-        level: fact.level,
+-        day: fact.day,
+-        startTime: fact.startTime,
+-        price: fact.price,
+-        groupSize: CAMPUS_CYCLE.groupSize,
+-      })
+-      expect(workshop.endTime ?? null).toBe('endTime' in fact ? fact.endTime : null)
+-      expect(workshop.latestEnd ?? null).toBe('latestEnd' in fact ? fact.latestEnd : null)
+-      expect(workshop.summary.length).toBeGreaterThan(20)
+-      // A description in words (what you learn and do); its facts are fields, tested above.
+-      expect(html(workshop.description).length).toBeGreaterThan(80)
+-      // Its own photo, with a real description for people who cannot see it.
+-      expect(workshop.image).toMatchObject({ filename: `${fact.slug}.jpg` })
+-      expect(typeof workshop.image === 'object' && workshop.image?.alt.length).toBeGreaterThan(20)
+-    }
+-    const withEndTime = await p.find({ collection: 'workshops', where: { endTime: { exists: true } } })
+-    expect(withEndTime.docs.map((workshop) => workshop.slug)).toEqual(['repair-a-puncture'])
+-    const withLatestEnd = await p.find({ collection: 'workshops', where: { latestEnd: { exists: true } } })
+-    expect(withLatestEnd.docs.map((workshop) => workshop.slug)).toEqual(['service-a-gear-system'])
+-    // Never an invented end time in the text either: the only times are the stated ones (and the
+-    // gear workshop's "by 15:00" limit, in its latestEnd field).
+-    for (const workshop of (await p.find({ collection: 'workshops', limit: 10 })).docs) {
+-      const { startTime, endTime, latestEnd, summary, description } = workshop
+-      const times = JSON.stringify({ startTime, endTime, latestEnd, summary, description }).match(/\b\d{2}:\d{2}\b/g) ?? []
+-      expect(new Set(times), workshop.slug).toEqual(
+-        new Set(
+-          {
+-            'repair-a-puncture': ['18:30', '20:00'],
+-            'adjust-your-brakes': ['10:00'],
+-            'service-a-gear-system': ['13:00', '15:00'],
+-            'true-a-wheel': ['19:00'],
+-          }[workshop.slug],
+-        ),
+-      )
+-    }
++    expect(readdirSync(uploadFolder(p)).sort()).toEqual(['clinic-tools.jpg', 'workshop-tools.jpg'])
+   })
+ 
+-  it('links topics and workshops in both directions, as the fact sheet assigns them', async () => {
++  it('stores the images, each with its alt text', async () => {
+     const p = await getTestPayload()
+     await seed(p)
+-    for (const topic of CAMPUS_CYCLE.topics) {
+-      const stored = await bySlug(p, 'topics', topic.slug)
+-      expect(stored).toMatchObject({ name: topic.name, description: topic.description })
+-      // The reverse side (the join on topics) shows the workshops whose "topics" name this topic.
+-      const reverse = (stored.workshops?.docs ?? []).map((workshop) => (typeof workshop === 'object' ? workshop.slug : workshop))
+-      const expected = CAMPUS_CYCLE.workshops.filter((workshop) => (workshop.topics as readonly string[]).includes(topic.slug))
+-      expect(reverse.sort()).toEqual(expected.map((workshop) => workshop.slug).sort())
+-      expect(reverse).toHaveLength(2)
+-    }
+-    for (const slug of ['repair-a-puncture', 'adjust-your-brakes']) {
+-      expect((await bySlug(p, 'workshops', slug)).topics, slug).toHaveLength(2)
+-    }
+-  })
+-
+-  it('stores the three repair prices and the images', async () => {
+-    const p = await getTestPayload()
+-    await seed(p)
+-    const repairs = await p.find({ collection: 'repairs', sort: 'price' })
+-    expect(repairs.docs.map(({ name, price }) => ({ name, price }))).toEqual([
+-      { name: 'Each small repair', price: 5 },
+-      { name: 'Check', price: 10 },
+-      { name: 'Full service', price: 45 },
+-    ])
+-    // No description: the price list shows each repair's name and price from their own fields.
+-    for (const repair of repairs.docs) expect(repair.description ?? '', repair.name).toBe('')
+     for (const filename of ['workshop-tools.jpg', 'clinic-tools.jpg']) {
+       const media = await p.find({ collection: 'media', where: { filename: { equals: filename } } })
+       expect(media.docs, filename).toHaveLength(1)
+@@ -209,10 +129,10 @@ describeExample('the Campus Cycle seed', () => {
+     const about = html((await bySlug(p, 'pages', 'about')).body)
+     expect(about).toContain('<h2>Photo credits</h2>')
+     // Three of the licences (CC BY-SA) require that the photographer and the licence are named.
+-    for (const credit of ['Björn Appel', 'Troy Sankey', 'Thegreenj', 'Foxtod', 'Downtowngal', 'Gengiskanhg']) {
++    for (const credit of ['Downtowngal', 'Gengiskanhg']) {
+       expect(about).toContain(credit)
+     }
+-    for (const licence of ['CC BY-SA 3.0', 'CC BY-SA 4.0', 'CC0 (public domain)']) expect(about).toContain(licence)
++    for (const licence of ['CC BY-SA 3.0', 'CC BY-SA 4.0']) expect(about).toContain(licence)
+     // "Where to find us" sends the reader to the Contact page, which shows the place.
+     expect(about).toContain('<a href="/contact">Contact page</a>')
+     // The home page has no text of its own below the intro: everything else on it comes from records.
+@@ -223,55 +143,24 @@ describeExample('the Campus Cycle seed', () => {
+   it('never overwrites a record an editor has changed', async () => {
+     const p = await getTestPayload()
+     await seed(p)
+-    const workshop = await bySlug(p, 'workshops', 'true-a-wheel')
++    const home = await bySlug(p, 'pages', 'home')
+     const page = await bySlug(p, 'pages', 'about')
+-    await p.update({ collection: 'workshops', id: workshop.id, data: { title: 'True a wheel (changed by an editor)' } })
++    await p.update({ collection: 'pages', id: home.id, data: { title: 'Home (changed by an editor)' } })
+     await p.update({ collection: 'pages', id: page.id, data: { intro: 'An intro an editor wrote.' } })
+     expect(await seed(p)).toEqual({ created: 0, skipped: ALL_RECORDS })
+-    expect((await bySlug(p, 'workshops', 'true-a-wheel')).title).toBe('True a wheel (changed by an editor)')
++    expect((await bySlug(p, 'pages', 'home')).title).toBe('Home (changed by an editor)')
+     expect((await bySlug(p, 'pages', 'about')).intro).toBe('An intro an editor wrote.')
+   })
+ })
+ 
+-describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the seeded content agrees with the fact sheet', () => {
++// The fact sheet is Campus Cycle's: a renamed site (the recipes' R1) has facts of its own.
++describe.runIf(EXAMPLE.campusCycle)('the seeded content agrees with the fact sheet', () => {
+   beforeEach(resetAll)
+   afterAll(resetAll)
+ 
+-  it('workshops, topics and repairs equal the fact sheet, copied here by hand', async () => {
++  it('the Site facts equal the fact sheet, copied here by hand', async () => {
+     const p = await getTestPayload()
+     await seed(p)
+-    const workshops = (await p.find({ collection: 'workshops', limit: 10, depth: 0 })).docs
+-    expect(
+-      workshops
+-        .map(({ title, level, day, startTime, endTime, latestEnd, price, groupSize }) => ({
+-          title,
+-          level,
+-          day,
+-          startTime,
+-          endTime: endTime ?? null,
+-          latestEnd: latestEnd ?? null,
+-          price,
+-          groupSize,
+-        }))
+-        .sort((a, b) => a.title.localeCompare(b.title)),
+-    ).toEqual(
+-      FACT_SHEET.workshops
+-        .map((workshop) => ({ ...workshop, groupSize: FACT_SHEET.groupSize }))
+-        .sort((a, b) => a.title.localeCompare(b.title)),
+-    )
+-    for (const fact of FACT_SHEET.topics) {
+-      const topic = await bySlug(p, 'topics', fact.slug)
+-      expect(topic.name).toBe(fact.name)
+-      const titles = (topic.workshops?.docs ?? []).map((workshop) => (typeof workshop === 'object' ? workshop.title : workshop))
+-      expect([...titles].sort(), fact.slug).toEqual([...fact.workshops].sort())
+-    }
+-    expect(await count(p, 'topics')).toBe(FACT_SHEET.topics.length)
+-    const repairs = (await p.find({ collection: 'repairs', limit: 10 })).docs
+-    expect(repairs.map(({ name, price }) => ({ name, price })).sort((a, b) => a.price - b.price)).toEqual(
+-      [...FACT_SHEET.repairs].sort((a, b) => a.price - b.price),
+-    )
+-    // The fact sheet gives a repair only its name and its price, so the seed adds no description.
+-    for (const repair of repairs) expect(repair.description ?? '', repair.name).toBe('')
+     // The facts several pages share, in the Site facts global.
+     expect(await p.findGlobal({ slug: 'site-facts' })).toMatchObject({
+       pricingRule: FACT_SHEET.pricingRule,
+@@ -280,7 +169,7 @@ describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the
+     })
+   })
+ 
+-  it('one source per fact: no workshop or repair description or page text repeats a price, the group size, the place, the e-mail or the pricing rule', async () => {
++  it('one source per fact: no page text repeats a price, the place, the e-mail or the pricing rule', async () => {
+     const p = await getTestPayload()
+     await seed(p)
+     // Written out here, not taken from src/content/campus-cycle.ts, so the test does not share a
+@@ -301,14 +190,6 @@ describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the
+       /Tools, a tutor and standard parts are included/,
+     ]
+     const texts: [string, string][] = []
+-    for (const workshop of (await p.find({ collection: 'workshops', limit: 10 })).docs) {
+-      texts.push([`workshop ${workshop.slug}`, html(workshop.description)])
+-      // Its one-line summary too: the lists show it right next to the level, day and price fields.
+-      texts.push([`workshop summary ${workshop.slug}`, workshop.summary])
+-    }
+-    for (const repair of (await p.find({ collection: 'repairs', limit: 10 })).docs) {
+-      if (repair.description) texts.push([`repair ${repair.name}`, repair.description])
+-    }
+     // Every page with a text, Contact too: its .example note speaks of "the e-mail address above".
+     for (const page of (await p.find({ collection: 'pages', limit: 10 })).docs) {
+       if (page.body) texts.push([`page ${page.slug}`, html(page.body)])
+@@ -321,13 +202,6 @@ describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the
+     for (const [name, text] of texts) {
+       for (const fact of repeatedFacts) expect(text, `${name} repeats ${fact}`).not.toMatch(fact)
+     }
+-    // The workshop descriptions and summaries say no day, time or level either: those are fields too
+-    // (the gear workshop's "ends by 15:00" as well: its latestEnd field).
+-    for (const [name, text] of texts.filter(([name]) => name.startsWith('workshop'))) {
+-      expect(text, name).not.toMatch(/Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/)
+-      expect(text, name).not.toMatch(/beginner|intermediate/i)
+-      expect(text, name).not.toMatch(/\b\d{1,2}[:.h]\d{2}\b/)
+-    }
+   })
+ 
+   it('the Site facts are filled once and never overwritten by a later run', async () => {
+@@ -358,9 +232,6 @@ describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the
+     expect(privacy).toContain('a scrambled code made from your internet (IP) address, for one hour')
+     expect(privacy).toContain('The address itself is not stored.')
+     expect(privacy).toContain('If you have an account on this site, you can also see your own bookings after you log in.')
+-    const summaries = (await p.find({ collection: 'workshops', limit: 10 })).docs.map((workshop) => workshop.summary)
+-    expect(summaries).toContain('Learn to find and mend a puncture.')
+-    for (const summary of summaries) expect(summary).not.toMatch(/done simple repairs before/)
+     // "bicycle repair", never "bicycle-repair", in every page.
+     for (const page of (await p.find({ collection: 'pages', limit: 10 })).docs) {
+       expect(JSON.stringify(page), page.slug).not.toContain('bicycle-repair')
+@@ -374,17 +245,16 @@ describe.runIf(EXAMPLE.workshops && EXAMPLE.repairs && EXAMPLE.campusCycle)('the
+     for (const url of [
+       'https://creativecommons.org/licenses/by-sa/3.0/',
+       'https://creativecommons.org/licenses/by-sa/4.0/',
+-      'https://creativecommons.org/publicdomain/zero/1.0/',
+     ]) {
+       expect(about).toContain(`<a href="${url}">`)
+     }
+-    expect(about).toContain('<a href="https://commons.wikimedia.org/wiki/File:Puncture-repaire-kit.jpg">')
+-    expect(about.match(/<a href="https:\/\/commons\.wikimedia\.org\/wiki\/File:/g)).toHaveLength(6)
++    expect(about).toContain('<a href="https://commons.wikimedia.org/wiki/File:BicycleRepairTools.JPG">')
++    expect(about.match(/<a href="https:\/\/commons\.wikimedia\.org\/wiki\/File:/g)).toHaveLength(2)
+     expect(about).toContain('Each photo was resized from the original and is shared under its own licence, as listed.')
+   })
+ })
+ 
+-describeExample('Blob storage on Vercel', () => {
++describe('Blob storage on Vercel', () => {
+   beforeEach(resetAll)
+   afterAll(resetAll)
+ 
+@@ -394,7 +264,7 @@ describeExample('Blob storage on Vercel', () => {
+     expect(NO_BLOB_STORE_MESSAGE).toBe(
+       'Images cannot be stored: this Vercel project has no Blob store connected. In Vercel: Storage → Create Storage → Blob (Public), connect it to Production only, with its read-write token (Settings → Environment Variables then lists BLOB_READ_WRITE_TOKEN), then Redeploy.',
+     )
+-    expect(await countAll(p)).toEqual({ workshops: 0, topics: 0, repairs: 0, pages: 0, media: 0, users: 0 })
++    expect(await countAll(p)).toEqual({ pages: 0, media: 0, users: 0 })
+   })
+ 
+   it('needs no Blob store when there is no image to upload', async () => {
+@@ -404,25 +274,25 @@ describeExample('Blob storage on Vercel', () => {
+   })
+ })
+ 
+-describeExample('the images are found by their base name', () => {
++describe('the images are found by their base name', () => {
+   beforeEach(resetAll)
+   afterAll(resetAll)
+ 
+   it('media records deleted but files kept: re-added once as name-1.jpg, then found again, never doubled', async () => {
+     const p = await getTestPayload()
+     await seed(p)
+-    // The records go, the files stay on disk: Payload then saves a new upload as repair-a-puncture-1.jpg.
++    // The records go, the files stay on disk: Payload then saves a new upload as clinic-tools-1.jpg.
+     await resetCollections(['media'])
+-    expect((await seed(p)).created).toBe(6)
++    expect((await seed(p)).created).toBe(2)
+     const renamed = (await p.find({ collection: 'media', limit: 10 })).docs.map((media) => media.filename)
+-    expect(renamed).toContain('repair-a-puncture-1.jpg')
+-    // The next run finds repair-a-puncture-1.jpg as the puncture photo, and adds nothing.
++    expect(renamed).toContain('clinic-tools-1.jpg')
++    // The next run finds clinic-tools-1.jpg as the clinic photo, and adds nothing.
+     expect(await seed(p)).toEqual({ created: 0, skipped: ALL_RECORDS })
+-    expect(await count(p, 'media')).toBe(6)
++    expect(await count(p, 'media')).toBe(2)
+   })
+ })
+ 
+-describeExample('runSeed: the example content is added once per database', () => {
++describe('runSeed: the example content is added once per database', () => {
+   const originalEmail = process.env.FIRST_ADMIN_EMAIL
+   const originalPassword = process.env.FIRST_ADMIN_PASSWORD
+   let log: MockInstance<typeof console.log>
+@@ -447,16 +317,15 @@ describeExample('runSeed: the example content is added once per database', () =>
+     const p = await getTestPayload()
+     expect(await runSeed(p, { env: {} })).toMatchObject({ example: 'added', created: ALL_RECORDS })
+     expect(await exampleWasAdded(p)).toBe(true)
+-    const wheel = await bySlug(p, 'workshops', 'true-a-wheel')
+-    await p.delete({ collection: 'workshops', id: wheel.id, overrideAccess: true })
++    const privacy = await bySlug(p, 'pages', 'privacy')
++    await p.delete({ collection: 'pages', id: privacy.id, overrideAccess: true })
+     const about = await bySlug(p, 'pages', 'about')
+     await p.update({ collection: 'pages', id: about.id, data: { slug: 'about-us' }, overrideAccess: true })
+ 
+     log.mockClear()
+     expect(await runSeed(p, { env: { VERCEL: '1' } })).toMatchObject({ example: 'skipped', created: 0 })
+     expect(logged()).toEqual(["SEED: skipped (the example content was added before; your editors' changes are kept)"])
+-    expect(await count(p, 'workshops')).toBe(3)
+-    expect(await count(p, 'pages')).toBe(4)
++    expect(await count(p, 'pages')).toBe(3)
+     expect((await p.find({ collection: 'pages', where: { slug: { equals: 'about' } } })).docs).toHaveLength(0)
+   })
+ 
+@@ -472,22 +341,22 @@ describeExample('runSeed: the example content is added once per database', () =>
+   it('--again adds back a deleted example record, overwrites nothing and leaves the flag set', async () => {
+     const p = await getTestPayload()
+     await runSeed(p, { env: {} })
+-    const wheel = await bySlug(p, 'workshops', 'true-a-wheel')
+-    await p.delete({ collection: 'workshops', id: wheel.id, overrideAccess: true })
+-    const brakes = await bySlug(p, 'workshops', 'adjust-your-brakes')
+-    await p.update({ collection: 'workshops', id: brakes.id, data: { title: 'Brakes (changed by an editor)' }, overrideAccess: true })
++    const privacy = await bySlug(p, 'pages', 'privacy')
++    await p.delete({ collection: 'pages', id: privacy.id, overrideAccess: true })
++    const about = await bySlug(p, 'pages', 'about')
++    await p.update({ collection: 'pages', id: about.id, data: { title: 'About (changed by an editor)' }, overrideAccess: true })
+ 
+     expect(await runSeed(p, { again: true, env: {} })).toMatchObject({ example: 'added', created: 1, skipped: ALL_RECORDS - 1 })
+-    expect(await count(p, 'workshops')).toBe(4)
+-    expect((await bySlug(p, 'workshops', 'adjust-your-brakes')).title).toBe('Brakes (changed by an editor)')
++    expect(await count(p, 'pages')).toBe(4)
++    expect((await bySlug(p, 'pages', 'about')).title).toBe('About (changed by an editor)')
+     expect(await exampleWasAdded(p)).toBe(true)
+-    expect(logged().at(-1)).toMatch(/^SEED: created 1, kept 20 \(--again/)
++    expect(logged().at(-1)).toMatch(/^SEED: created 1, kept 6 \(--again/)
+   })
+ 
+   it('ADD_EXAMPLE_CONTENT false: no content at all, but the first editor is still created', async () => {
+     const p = await getTestPayload()
+     expect(await runSeed(p, { addExampleContent: false, env: {} })).toMatchObject({ example: 'off', created: 0 })
+-    expect(await countAll(p)).toEqual({ workshops: 0, topics: 0, repairs: 0, pages: 0, media: 0, users: 1 })
++    expect(await countAll(p)).toEqual({ pages: 0, media: 0, users: 1 })
+     expect(logged()[0]).toContain('ADD_EXAMPLE_CONTENT')
+   })
+ 
+@@ -495,21 +364,21 @@ describeExample('runSeed: the example content is added once per database', () =>
+     const p = await getTestPayload()
+     // On Vercel without a Blob store: the seed stops before it creates anything.
+     await expect(runSeed(p, { env: { VERCEL: '1' } })).rejects.toThrow(NO_BLOB_STORE_MESSAGE)
+-    expect(await countAll(p)).toEqual({ workshops: 0, topics: 0, repairs: 0, pages: 0, media: 0, users: 1 })
++    expect(await countAll(p)).toEqual({ pages: 0, media: 0, users: 1 })
+     expect(await exampleWasAdded(p)).toBe(false)
+   })
+ 
+   it('a first run that never finished: the next run creates only what is missing, then sets the flag', async () => {
+     const p = await getTestPayload()
+-    // Everything was created, but the run stopped before it could write the flag; then a workshop was
++    // Everything was created, but the run stopped before it could write the flag; then a page was
+     // deleted.
+     await seed(p)
+     expect(await exampleWasAdded(p)).toBe(false)
+-    const wheel = await bySlug(p, 'workshops', 'true-a-wheel')
+-    await p.delete({ collection: 'workshops', id: wheel.id, overrideAccess: true })
++    const privacy = await bySlug(p, 'pages', 'privacy')
++    await p.delete({ collection: 'pages', id: privacy.id, overrideAccess: true })
+ 
+     expect(await runSeed(p, { env: {} })).toMatchObject({ example: 'added', created: 1, skipped: ALL_RECORDS - 1 })
+-    expect(await count(p, 'workshops')).toBe(4)
++    expect(await count(p, 'pages')).toBe(4)
+     expect(await exampleWasAdded(p)).toBe(true)
+   })
+ })
+diff --git a/tests/integration/w6-repair-choice.test.tsx b/tests/integration/w6-repair-choice.test.tsx
+deleted file mode 100644
+index e9af4ca..0000000
+--- a/tests/integration/w6-repair-choice.test.tsx
++++ /dev/null
+@@ -1,172 +0,0 @@
+-// W6's repair choice, switched on. In the starter it is commented out, so no ordinary test can reach
+-// it. This test makes a throw-away copy of BookingForm.tsx with the W6 part switched on exactly as the
+-// instructions say (remove the // in front of RepairChoice, replace the placeholder line), and checks
+-// that a repair the user ticked stays ticked when the form comes back after a failed send. It also
+-// checks the server side: every "not saved" answer hands the ticked repairs back to the form.
+-//
+-// Not tested here: the two commented W6 lines in src/tasks/book-slot/createBooking.ts (the `const
+-// repairs = ...` line and `repairs,` in payload.create). They save the ticked repairs, and that only
+-// works once the bookings collection has a `repairs` relationship, which W6 itself adds. Until then
+-// they stay commented out and untested.
+-import { randomUUID } from 'node:crypto'
+-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+-import { tmpdir } from 'node:os'
+-import path from 'node:path'
+-import { fileURLToPath } from 'node:url'
+-import { createElement, type ComponentType } from 'react'
+-import { renderToString } from 'react-dom/server'
+-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+-import type { Payload } from 'payload'
+-import { getTestPayload, resetCollections } from '../setup/payload'
+-import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
+-import { createBooking } from '../../src/tasks/book-slot/createBooking'
+-import { typedValues } from '../../src/tasks/book-slot/typedValues'
+-import { EXAMPLE } from '../setup/example'
+-
+-refuseUnlessThrowAwayTestDatabase()
+-
+-const root = fileURLToPath(new URL('../..', import.meta.url))
+-const PLACEHOLDER = '{/* W6: <RepairChoice repairs={props.repairs} /> */}'
+-
+-/** BookingForm.tsx with W6 switched on, as a student would do it, plus exports for this test. */
+-function switchedOn(source: string): string {
+-  const lines = source.split('\n')
+-  // A learner's copy after W6 has it switched on already: test that one as it is.
+-  if (!lines.some((line) => line.startsWith('// function RepairChoice('))) return withExports(lines)
+-  const start = lines.findIndex((line) => line.startsWith('// function RepairChoice('))
+-  const end = lines.findIndex((line, i) => i > start && line === '// }')
+-  if (start < 0 || end < 0) throw new Error('The W6 RepairChoice block was not found in BookingForm.tsx')
+-  for (let i = start; i <= end; i++) lines[i] = lines[i].replace(/^\/\/ ?/, '')
+-  // "Replace the whole line": the line in the form that holds only the placeholder (the instructions
+-  // above it quote the same text, and stay as they are).
+-  const placeholder = lines.findIndex((line) => line.trim() === PLACEHOLDER)
+-  if (placeholder < 0) throw new Error('The W6 placeholder line was not found in BookingForm.tsx')
+-  lines[placeholder] = lines[placeholder].replace(PLACEHOLDER, '<RepairChoice repairs={props.repairs} />')
+-  return withExports(lines)
+-}
+-
+-/**
+- * The price fix the comment above `const label = repair.name` gives, done as it says: that line
+- * replaced by the comment's label line, and the comment's import line added under the other imports.
+- * Null in a learner's copy that already shows the price (or changed the label another way).
+- */
+-function withPriceFix(source: string): string | null {
+-  const lines = source.split('\n')
+-  const quoted = (start: string) => lines.find((line) => line.trimStart().startsWith(`//   ${start}`))?.trim().replace(/^\/\/\s+/, '')
+-  const newLabel = quoted('const label = ')
+-  const newImport = quoted('import { formatPrice }')
+-  const label = lines.findIndex((line) => line.trim() === 'const label = repair.name')
+-  if (!newLabel || !newImport || label < 0) return null
+-  lines[label] = lines[label].replace('const label = repair.name', newLabel)
+-  const lastImport = lines.reduce((last, line, i) => (line.startsWith('import ') ? i : last), -1)
+-  lines.splice(lastImport + 1, 0, newImport)
+-  return lines.join('\n')
+-}
+-
+-function withExports(lines: string[]): string {
+-  // The copy lives outside the project, where the project's JSX setting does not reach it: the
+-  // React import lets its JSX compile there too.
+-  return `import * as React from 'react'\n${lines.join('\n')}\nexport { RepairChoice }\nvoid React\n`
+-}
+-
+-// W6 is about the repairs: a copy without them (npm run remove-example) skips it (tests/setup/example.ts).
+-describe.runIf(EXAMPLE.repairs)('W6 switched on: the ticked repairs survive a failed send', () => {
+-  let folder: string
+-  let w6: {
+-    RepairChoice: ComponentType<{ repairs: { id: number; name: string; price: number }[] }>
+-    SentValues: React.Context<unknown>
+-    BookingForm: ComponentType<{ clinic: string; slots: { id: number; label: string; placesLeft: number }[]; requestId: string; repairs: { id: number; name: string; price: number }[] }>
+-  }
+-  let p: Payload
+-  let slotId: number
+-  const repairs = [{ id: 1, name: 'Check', price: 10 }, { id: 2, name: 'Each small repair', price: 5 }, { id: 3, name: 'Full service', price: 45 }]
+-
+-  beforeAll(async () => {
+-    folder = mkdtempSync(path.join(tmpdir(), 'bw-starter-w6-'))
+-    const file = path.join(folder, 'BookingForm.w6.tsx')
+-    writeFileSync(file, switchedOn(readFileSync(path.join(root, 'src/components/site/BookingForm.tsx'), 'utf8')))
+-    w6 = await import(/* @vite-ignore */ file)
+-    p = await getTestPayload()
+-  })
+-  beforeEach(async () => {
+-    await resetCollections(['bookings', 'timeSlots', 'clinics', 'throttle'])
+-    const clinic = await p.create({ collection: 'clinics', data: { name: 'Test clinic', slug: 'test-clinic', day: 'Saturday', startTime: '15:00', endTime: '17:00', summary: 'Test instance.' } })
+-    slotId = (await p.create({ collection: 'timeSlots', data: { clinic: clinic.id, startsAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(), places: 1 } })).id
+-  })
+-  afterAll(async () => {
+-    rmSync(folder, { recursive: true, force: true })
+-    await resetCollections(['bookings', 'timeSlots', 'clinics', 'throttle'])
+-  })
+-
+-  const checked = (html: string) => [...html.matchAll(/<input type="checkbox"[^>]*>/g)].filter(([tag]) => /checked=""/.test(tag)).map(([tag]) => /value="(\d+)"/.exec(tag)?.[1])
+-  // The switched-on repair choice inside the form's "what was sent last time".
+-  const render = (sent: unknown) =>
+-    renderToString(createElement(w6.SentValues, { value: sent }, createElement(w6.RepairChoice, { repairs })))
+-
+-  it('the switched-on form shows the repair choice inside the form, after the note and before the button', () => {
+-    const html = renderToString(createElement(w6.BookingForm, { clinic: 'test-clinic', slots: [{ id: 1, label: 'Saturday 10 October, 15:00', placesLeft: 2 }], requestId: randomUUID(), repairs }))
+-    expect(html).toMatch(/<form[^>]*>.*name="note".*<legend[^>]*>.*Repairs.*name="repairs".*Book this slot.*<\/form>/s)
+-    expect(html.match(/<input type="checkbox"[^>]*name="repairs"/g)).toHaveLength(3)
+-  })
+-
+-  it("with the comment's price fix copied in, shows each repair's name and price", async () => {
+-    const source = readFileSync(path.join(root, 'src/components/site/BookingForm.tsx'), 'utf8')
+-    const fixed = withPriceFix(switchedOn(source))
+-    // A learner's copy that already shows the price has no fix left to copy; the starter has it.
+-    if (!source.includes("//   const label = repair.name + ', ' + formatPrice(repair.price)")) return
+-    expect(fixed).not.toBeNull()
+-    if (fixed === null) return
+-    const file = path.join(folder, 'BookingForm.w6-price.tsx')
+-    writeFileSync(file, fixed)
+-    const priced: typeof w6 = await import(/* @vite-ignore */ file)
+-    const html = renderToString(createElement(priced.SentValues, { value: { timeSlot: '', name: '', email: '', note: '' } }, createElement(priced.RepairChoice, { repairs })))
+-    for (const label of ['Check, EUR 10', 'Each small repair, EUR 5', 'Full service, EUR 45']) expect(html).toContain(label)
+-  })
+-
+-  it('shows each repair by name, none ticked on a fresh form', () => {
+-    const html = render({ timeSlot: '', name: '', email: '', note: '' })
+-    for (const repair of repairs) expect(html).toContain(repair.name)
+-    expect(html.match(/<input type="checkbox"[^>]*name="repairs"/g)).toHaveLength(3)
+-    expect(checked(html)).toEqual([])
+-  })
+-
+-  const form = (fields: Record<string, string | string[]>) => {
+-    const data = new FormData()
+-    const all = { clinic: 'test-clinic', requestId: randomUUID(), name: 'Test Person', email: 'test@campuscycle.example', timeSlot: String(slotId), ...fields }
+-    for (const [name, value] of Object.entries(all)) for (const one of [value].flat()) data.append(name, one)
+-    return data
+-  }
+-  const send = (fields: Record<string, string | string[]>) => createBooking(form(fields), { payload: p, ip: `198.51.100.${Math.floor(Math.random() * 200) + 1}`, now: new Date() })
+-
+-  it('after a field problem, a full slot and a lost answer, the ticked repairs come back ticked', async () => {
+-    // A field problem (the server's answer).
+-    const invalid = await send({ email: 'nope', repairs: ['1', '3'] })
+-    expect(invalid).toMatchObject({ ok: false, field: 'email', values: { repairs: ['1', '3'] } })
+-    expect(checked(render(!invalid.ok && invalid.values))).toEqual(['1', '3'])
+-
+-    // A full slot (the server's answer): someone else took the one place first.
+-    expect((await send({})).ok).toBe(true)
+-    const full = await send({ repairs: ['2'] })
+-    expect(full).toMatchObject({ ok: false, message: 'This slot is full. Choose another time.', values: { timeSlot: '', repairs: ['2'] } })
+-    expect(checked(render(!full.ok && full.values))).toEqual(['2'])
+-
+-    // No answer at all: the form keeps what it sent itself.
+-    const lost = typedValues(form({ repairs: ['1', '2'] }))
+-    expect(checked(render(lost))).toEqual(['1', '2'])
+-  })
+-
+-  it('hands back only repair ids, and saves nothing from them before W6 (the whitelist), the ticked ones after W6', async () => {
+-    const result = await send({ email: 'nope', repairs: ['2', 'x', '<b>', '3'] })
+-    expect(result).toMatchObject({ values: { repairs: ['2', '3'] } })
+-    // After W6 (a learner's copy: bookings.repairs and the two createBooking lines are switched on),
+-    // the ticked repairs are saved, so they must be real ones.
+-    const w6 = p.collections.bookings.config.flattenedFields.some((field) => field.name === 'repairs')
+-    if (w6) await resetCollections(['repairs'])
+-    const ticked = w6 ? (await p.create({ collection: 'repairs', data: { name: 'Each small repair', price: 5 } })).id : 2
+-    const saved = await send({ repairs: [String(ticked)] })
+-    expect(saved.ok).toBe(true)
+-    const [booking] = (await p.find({ collection: 'bookings', depth: 0 })).docs
+-    if (w6) expect((booking as unknown as { repairs: unknown }).repairs).toEqual([ticked])
+-    else expect(booking).not.toHaveProperty('repairs')
+-  })
+-})
+diff --git a/tests/unit/filters.test.ts b/tests/unit/filters.test.ts
+deleted file mode 100644
+index c4ce9f4..0000000
+--- a/tests/unit/filters.test.ts
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// The workshop filters, read from the address, without a database: anything can be typed into an
+-// address, so these check that odd input is left out and never crashes the page.
+-import { describe, expect, it } from 'vitest'
+-import { filterQuery, filterSummary, parseFilters } from '@/tasks/find-workshop/filters'
+-import { workshopWhere } from '@/tasks/find-workshop/queries'
+-import { formatWhen } from '@/lib/format'
+-
+-describe('parseFilters', () => {
+-  it('reads a topic slug and a level', () => {
+-    expect(parseFilters({ topic: 'brakes-and-gears', level: 'beginner' })).toEqual({ topic: 'brakes-and-gears', level: 'beginner', unknown: [] })
+-  })
+-  it('ignores an unknown level and reports it, never throws', () => {
+-    expect(parseFilters({ level: 'expert' })).toEqual({ topic: null, level: null, unknown: ['level'] })
+-  })
+-  it('takes the first value when a parameter repeats, and trims spaces', () => {
+-    expect(parseFilters({ topic: [' tyres-and-wheels ', 'x'] }).topic).toBe('tyres-and-wheels')
+-  })
+-  it('rejects a topic that is not a slug', () => {
+-    expect(parseFilters({ topic: '<script>' })).toEqual({ topic: null, level: null, unknown: ['topic'] })
+-  })
+-
+-  it('treats an empty value as "all": that is what the form sends for All topics and All levels', () => {
+-    expect(parseFilters({ topic: '', level: '' })).toEqual({ topic: null, level: null, unknown: [] })
+-  })
+-  it('reports a part that is not a filter, and still reads the filters', () => {
+-    expect(parseFilters({ utm_source: 'mail', level: 'intermediate' })).toEqual({ topic: null, level: 'intermediate', unknown: ['utm_source'] })
+-  })
+-  it('accepts capitals and spaces around the level and topic', () => {
+-    expect(parseFilters({ topic: ' Tyres-And-Wheels', level: 'Beginner ' })).toMatchObject({ topic: 'tyres-and-wheels', level: 'beginner' })
+-  })
+-  it('never throws on odd input: no parameters, an empty list, a very long topic', () => {
+-    expect(parseFilters({})).toEqual({ topic: null, level: null, unknown: [] })
+-    expect(parseFilters({ topic: [], level: undefined })).toEqual({ topic: null, level: null, unknown: [] })
+-    expect(parseFilters({ topic: 'a'.repeat(500) })).toEqual({ topic: null, level: null, unknown: ['topic'] })
+-  })
+-})
+-
+-describe('workshopWhere', () => {
+-  it('no filters: every workshop', () => {
+-    expect(workshopWhere({ topic: null, level: null }, null)).toEqual({})
+-  })
+-  it('a topic that exists: the workshops that have it among their topics', () => {
+-    expect(workshopWhere({ topic: 'brakes-and-gears', level: null }, 7)).toEqual({ and: [{ topics: { in: [7] } }] })
+-  })
+-  it('a level: the workshops of that level', () => {
+-    expect(workshopWhere({ topic: null, level: 'beginner' }, null)).toEqual({ and: [{ level: { equals: 'beginner' } }] })
+-  })
+-  it('both: a workshop must match both', () => {
+-    expect(workshopWhere({ topic: 'brakes-and-gears', level: 'beginner' }, 7)).toEqual({
+-      and: [{ topics: { in: [7] } }, { level: { equals: 'beginner' } }],
+-    })
+-  })
+-  it('a topic slug that matches no topic: no workshop at all, not every workshop', () => {
+-    expect(workshopWhere({ topic: 'unknown', level: null }, null)).toEqual({ and: [{ id: { exists: false } }] })
+-  })
+-})
+-
+-describe('the filters in words and in an address', () => {
+-  it('filterQuery carries only the filters that are set', () => {
+-    expect(filterQuery({ topic: null, level: null })).toBe('')
+-    expect(filterQuery({ topic: 'brakes-and-gears', level: 'beginner' })).toBe('?topic=brakes-and-gears&level=beginner')
+-    expect(filterQuery({ topic: null, level: 'intermediate' })).toBe('?level=intermediate')
+-  })
+-  it('filterSummary names the filters and the count', () => {
+-    expect(filterSummary('beginner', 'Brakes and gears', 1)).toBe('Showing beginner workshops about Brakes and gears — 1 workshop')
+-    expect(filterSummary(null, null, 4)).toBe('Showing all workshops — 4 workshops')
+-    expect(filterSummary(null, 'Tyres and wheels', 2)).toBe('Showing workshops about Tyres and wheels — 2 workshops')
+-    expect(filterSummary('intermediate', null, 2)).toBe('Showing intermediate workshops — 2 workshops')
+-  })
+-})
+-
+-describe('formatWhen', () => {
+-  it('an end time, a latest end, or neither (never a made-up end)', () => {
+-    expect(formatWhen({ day: 'Tuesday', startTime: '18:30', endTime: '20:00' })).toBe('Tuesday 18:30–20:00')
+-    expect(formatWhen({ day: 'Saturday', startTime: '13:00', latestEnd: '15:00' })).toBe('Saturday from 13:00, ends\u00a0by\u00a015:00')
+-    expect(formatWhen({ day: 'Saturday', startTime: '10:00', endTime: null, latestEnd: null })).toBe('Saturday from 10:00')
+-  })
+-})
