@@ -9,6 +9,10 @@
 // variable and never pastes it into a shell command, so nothing anyone types in a description can run
 // as a command on the CI machine.
 //
+// A revert needs no AI note. GitHub's Revert button (on a merged pull request) makes a new pull request
+// whose description starts with "Reverts owner/repo#12": it only undoes a change that was already
+// checked, so this check passes it as it is.
+//
 // Run it yourself: PR_BODY="$(cat description.md)" node scripts/ci/ai-note.mjs
 import { pathToFileURL } from 'node:url'
 import { sectionText, visibleText } from './prBody.mjs'
@@ -18,11 +22,17 @@ export const AI_NOTE_TITLE = 'AI note: what I asked AI, and what I checked'
 // The template's hint, also when someone removed the <!-- --> around it but kept its words.
 const HINT = /Write what you asked an AI tool and how you checked its answer\.\s*If you used no AI, write: No AI used\./g
 
+// The first line of a description made by GitHub's Revert button: "Reverts owner/repo#12".
+const REVERT = /^Reverts [\w.-]+\/[\w.-]+#\d+\b/
+
 /**
  * @param {string | null | undefined} prBody the pull request's description
  * @returns {{ ok: boolean, message: string }}
  */
 export function checkAiNote(prBody) {
+  if (REVERT.test(String(prBody ?? '').trimStart())) {
+    return { ok: true, message: "AI note: not needed. This pull request reverts an earlier one (GitHub's Revert button)." }
+  }
   const section = sectionText(prBody, AI_NOTE_TITLE)
   if (section === null) {
     return {

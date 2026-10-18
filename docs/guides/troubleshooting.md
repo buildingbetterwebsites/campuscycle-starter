@@ -360,6 +360,9 @@ description, then **Edit**). Add the heading exactly as written, and under it wr
 AI tool and how you checked its answer. If you used no AI, write: No AI used. Save. CI runs again by
 itself: you do not need a new commit.
 
+A pull request made with GitHub's **Revert** button needs no AI note: its description starts with
+"Reverts owner/repository#12", and the check passes it as it is.
+
 ## AI note: empty.
 
 > AI note: empty. Under "## AI note: what I asked AI, and what I checked" in your pull request's description, write what you asked an AI tool and how you checked its answer. (…)
