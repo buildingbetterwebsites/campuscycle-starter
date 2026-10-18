@@ -47,5 +47,5 @@ export const EXAMPLE = {
   clinic: hasCollection('clinics') && hasCollection('timeSlots') && hasCollection('bookings') && hasPage('/clinics/[slug]'),
   // Still the Campus Cycle site, not renamed yet: the tests that compare the seed with the course's
   // Campus Cycle fact sheet run only then (a renamed site has facts of its own).
-  campusCycle: SITE_NAME === 'Campus Cycle',
+  campusCycle: (SITE_NAME as string) === 'Campus Cycle',
 }

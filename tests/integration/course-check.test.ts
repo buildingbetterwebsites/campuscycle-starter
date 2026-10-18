@@ -262,8 +262,11 @@ describe('the course check, before W5 and W6 (the app as it ships)', () => {
 
   it("team: the template's collections with their counts, its many-to-many, and no booking yet", async () => {
     const team = await teamOf(await answer(request('?include=team')))
-    expect(team.collections).toEqual(TEMPLATE_SLUGS.map((slug) => ({ slug, count: 0, fromTemplate: true })))
-    expect(team.manyToMany).toEqual(TEMPLATE_MANY_TO_MANY)
+    // A team's own collections (and their many-to-many links) come on top of the template's, marked so.
+    const own = team.collections.filter((collection) => !TEMPLATE_SLUGS.includes(collection.slug))
+    expect(team.collections.filter((collection) => TEMPLATE_SLUGS.includes(collection.slug))).toEqual(TEMPLATE_SLUGS.map((slug) => ({ slug, count: 0, fromTemplate: true })))
+    for (const collection of own) expect(collection.fromTemplate, collection.slug).toBe(false)
+    expect(team.manyToMany).toEqual(own.length === 0 ? TEMPLATE_MANY_TO_MANY : expect.arrayContaining(TEMPLATE_MANY_TO_MANY))
     expect(team.transactional).toEqual({ collection: 'bookings', status: 'ok', codeField: null, newest: null })
 
     const clinic = await addClinic(p, 'Code BW-7F3K.')

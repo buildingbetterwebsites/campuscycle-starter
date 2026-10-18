@@ -105,6 +105,7 @@ fixed in [the course-check contract](docs/COURSE-CHECK-CONTRACT.md). Do not chan
 | `npm run migrate:create -- <name>` | Creates a migration for your change to the content model |
 | `npm run seed` | Creates your admin account and adds the example content (once). `npm run seed -- --again` adds back deleted example records |
 | `npm run generate` | Regenerates `src/payload-types.ts` and the admin's import map after a model change |
+| `npm run remove-example` | For a team, once, first: shows what it would take out of the example (the workshops, topics and repairs, with their pages, tests and photos). `npm run remove-example -- --yes` does it and makes the migration; the clinic, time slots and bookings stay |
 | `npm run lint` | Looks for mistakes in the code |
 | `npm run typecheck` | Checks the TypeScript types |
 | `npm test` | Runs the tests (they use their own database in memory, never yours) |
