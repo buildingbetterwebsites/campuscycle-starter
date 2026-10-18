@@ -7,6 +7,7 @@ import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Payload } from 'payload'
 import { seed } from '../../src/seed/seed'
+import { CAMPUS_CYCLE, SITE_NAME } from '../../src/content/campus-cycle'
 import { forgetExampleAdded, getTestPayload, resetCollections, resetSiteFacts } from '../setup/payload'
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
 import { trackSteps } from '../setup/elements'
@@ -64,7 +65,7 @@ describe('example task 1: find a workshop by topic and level', () => {
     const { html, title } = await list()
     expect(listed(html)).toEqual(['adjust-your-brakes', 'repair-a-puncture', 'service-a-gear-system', 'true-a-wheel'])
     expect(html).toContain('Showing all workshops — 4 workshops')
-    expect(title).toBe('Workshops · Campus Cycle')
+    expect(title).toBe(`Workshops · ${SITE_NAME}`)
     // A plain form: it works without JavaScript, and its choices end up in the address.
     // #results: after Apply filters the browser scrolls to the results, so a phone user sees them
     // straight away instead of the top of the page again.
@@ -89,7 +90,7 @@ describe('example task 1: find a workshop by topic and level', () => {
     const { html, title } = await list({ topic: 'brakes-and-gears', level: 'beginner' })
     expect(listed(html)).toEqual(['adjust-your-brakes'])
     expect(html).toContain('Showing beginner workshops about Brakes and gears — 1 workshop')
-    expect(title).toBe('Showing beginner workshops about Brakes and gears — 1 workshop · Campus Cycle')
+    expect(title).toBe(`Showing beginner workshops about Brakes and gears — 1 workshop · ${SITE_NAME}`)
     // The form shows the chosen filters, and offers to clear them.
     expect(html).toMatch(/<option[^>]*value="brakes-and-gears" selected="">Brakes and gears<\/option>/)
     expect(html).toMatch(/<option[^>]*value="beginner" selected="">Beginner<\/option>/)
@@ -128,7 +129,7 @@ describe('example task 1: find a workshop by topic and level', () => {
     expect(html).toContain('No workshops match these filters')
     expect(html).toContain('This site has no topic called &quot;unknown&quot;. The link may be out of date.')
     expect(html).toMatch(/href="\/workshops"[^>]*>Clear filters</)
-    expect(title).toBe('No workshops match these filters · Campus Cycle')
+    expect(title).toBe(`No workshops match these filters · ${SITE_NAME}`)
   })
 
   it('an odd address is left out, never a crash: a repeated topic, a script, parts that are not filters', async () => {
@@ -147,7 +148,7 @@ describe('example task 1: find a workshop by topic and level', () => {
     expect(html).toContain('Intermediate')
     expect(html).toContain('At most 6 people')
     // Shared facts, from the global (one source per fact).
-    expect(html).toContain('Workshop B, Student Centre')
+    expect(html).toContain(CAMPUS_CYCLE.place)
     expect(html).toContain('Bring your own parts and pay EUR 5 less per bicycle.')
     // Its description, in words.
     expect(html).toContain('truing stand')
@@ -155,7 +156,7 @@ describe('example task 1: find a workshop by topic and level', () => {
     expect(html).toMatch(/href="\/topics\/tyres-and-wheels"[^>]*>Tyres and wheels</)
     // Its parent, without a made-up path through a topic.
     expect(html).toMatch(/<nav aria-label="Breadcrumb"[^>]*>.*href="\/workshops"[^>]*>Workshops<.*aria-current="page"[^>]*>True a wheel</)
-    expect(await tabTitle(workshopMetadata({ params: Promise.resolve({ slug: 'true-a-wheel' }), searchParams: Promise.resolve({}) }))).toBe('True a wheel · Campus Cycle')
+    expect(await tabTitle(workshopMetadata({ params: Promise.resolve({ slug: 'true-a-wheel' }), searchParams: Promise.resolve({}) }))).toBe(`True a wheel · ${SITE_NAME}`)
   })
 
   it('the gear workshop says when it ends at the latest, from its latestEnd field', async () => {
@@ -201,7 +202,7 @@ describe('example task 1: find a workshop by topic and level', () => {
     const puncture = html.slice(html.indexOf('href="/workshops/repair-a-puncture'), html.indexOf('href="/workshops/true-a-wheel'))
     expect(puncture).toContain('href="/topics/everyday-maintenance"')
     expect(html).toContain('href="/workshops?topic=tyres-and-wheels"')
-    expect(await tabTitle(topicMetadata({ params: Promise.resolve({ slug: 'tyres-and-wheels' }) }))).toBe('Tyres and wheels · Workshops · Campus Cycle')
+    expect(await tabTitle(topicMetadata({ params: Promise.resolve({ slug: 'tyres-and-wheels' }) }))).toBe(`Tyres and wheels · Workshops · ${SITE_NAME}`)
     expect(listed(await topic('everyday-maintenance'))).toEqual(['adjust-your-brakes', 'repair-a-puncture'])
   })
 
@@ -227,7 +228,7 @@ describe('example task 1: find a workshop by topic and level', () => {
       const html = await workshop('repair-a-puncture')
       expect(html).toContain('Room 12 (changed by an editor)')
       expect(html).toContain('Parts cost extra (changed by an editor).')
-      expect(html).not.toContain('Workshop B, Student Centre')
+      expect(html).not.toContain(CAMPUS_CYCLE.place)
       expect(html).not.toContain('Bring your own parts')
     } finally {
       await p.updateGlobal({ slug: 'site-facts', data: { place: before.place, pricingRule: before.pricingRule }, overrideAccess: true })

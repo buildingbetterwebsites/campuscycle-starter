@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { CHECK_LIMITS, CHECK_STYLE_PROPS, CHECK_WIDTHS, evaluate, type CheckDriver, type CheckStep } from '../../src/checks/checks'
 import { pagesToCheck, readChecksFile } from '../e2e/checksFile'
+import { EXAMPLE } from '../setup/example'
 
 const file = readChecksFile()
 const pages = pagesToCheck(file)
@@ -37,7 +38,9 @@ describe('checks/checks.json', () => {
 
   it('checks the pages a user reaches, starting with the two tasks', () => {
     const paths = pages.map((page) => page.path)
-    for (const path of ['/', '/workshops', '/workshops/adjust-your-brakes', '/topics/brakes-and-gears', '/clinics', '/clinics/{test-clinic}', '/about', '/privacy']) {
+    // The example's workshop pages only while the site has them (tests/setup/example.ts).
+    const workshopPages = EXAMPLE.workshopPages ? ['/workshops', '/workshops/adjust-your-brakes', '/topics/brakes-and-gears'] : []
+    for (const path of ['/', ...workshopPages, '/clinics', '/clinics/{test-clinic}', '/about', '/privacy']) {
       expect(paths).toContain(path)
     }
     expect(paths.every((path) => path.startsWith('/'))).toBe(true)

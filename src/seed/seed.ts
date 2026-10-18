@@ -162,7 +162,7 @@ function workshopDescription(workshop: CampusCycleWorkshop) {
   return richText(DESCRIPTIONS[workshop.slug].map((paragraph) => ({ paragraph })))
 }
 
-const PAGES = [
+export const PAGES = [
   {
     title: 'Campus Cycle',
     slug: 'home',

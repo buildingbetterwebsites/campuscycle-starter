@@ -2,14 +2,17 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import pg from 'pg'
 import { setTimeout } from 'node:timers/promises'
 import { getTestPayload, resetCollections } from '../setup/payload'
+import { EXAMPLE } from '../setup/example'
 
 // PGlite serialises transactions. Only a real, isolated Postgres can establish these race results.
 describe.runIf(process.env.CI_REAL_POSTGRES === '1')('database deletion restrictions under concurrent writes', () => {
-  const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics']
+  // The topics and workshops only while the site has them (tests/setup/example.ts).
+  const clean = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.workshops ? ['workshops', 'topics'] : [])]
   beforeEach(() => resetCollections(clean))
   afterAll(() => resetCollections(clean))
 
-  for (const parent of ['clinics', 'time_slots', 'topics'] as const) {
+  const parents = ['clinics', 'time_slots', ...(EXAMPLE.workshops ? ['topics'] : [])] as ('clinics' | 'time_slots' | 'topics')[]
+  for (const parent of parents) {
     it(`keeps ${parent} and its link when a child is being created during deletion`, async () => {
       const p = await getTestPayload()
       let id: number

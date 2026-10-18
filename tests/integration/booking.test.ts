@@ -12,6 +12,8 @@ import { getTestPayload, resetCollections, resetSiteFacts } from '../setup/paylo
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
 import { trackSteps } from '../setup/elements'
 import { tabTitle } from '../setup/title'
+import { EXAMPLE } from '../setup/example'
+import { SITE_NAME } from '../../src/content/campus-cycle'
 import { createBooking } from '../../src/tasks/book-slot/createBooking'
 import { allowRequest } from '../../src/tasks/book-slot/guards'
 import { bookingRef } from '../../src/tasks/book-slot/receipt'
@@ -21,7 +23,8 @@ import BookedPage from '../../src/app/(site)/clinics/[slug]/booked/page'
 // These tests delete every booking, slot and clinic: never on a real database.
 refuseUnlessThrowAwayTestDatabase()
 
-const clean = ['bookings', 'timeSlots', 'clinics', 'repairs', 'throttle']
+// The repairs only while the site has them (tests/setup/example.ts).
+const clean = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.repairs ? ['repairs'] : []), 'throttle']
 const FULL = 'This slot is full. Choose another time.'
 const NOT_SAVED = 'Your booking was not saved. Please try again.'
 const TOO_MANY = 'Too many bookings from this device. Try again in an hour.'
@@ -356,8 +359,10 @@ describe('example task 2: book a clinic slot', () => {
       await slot(new Date(Date.now() - DAY))
       await book({ timeSlot: String(second.id), name: 'Private Booker', email: 'private@campuscycle.example', note: 'Private note' })
       await book({ timeSlot: String(third.id) })
-      await p.create({ collection: 'repairs', data: { name: 'Check', price: 10 } })
-      await p.create({ collection: 'repairs', data: { name: 'Full service', price: 45, description: 'Everything checked and adjusted.' } })
+      if (EXAMPLE.repairs) {
+        await p.create({ collection: 'repairs', data: { name: 'Check', price: 10 } })
+        await p.create({ collection: 'repairs', data: { name: 'Full service', price: 45, description: 'Everything checked and adjusted.' } })
+      }
       const html = await clinicPage()
       expect(html).toContain('<h1')
       expect(html).toContain('Test clinic')
@@ -373,7 +378,7 @@ describe('example task 2: book a clinic slot', () => {
       expect(html).toMatch(new RegExp(`<input[^>]*disabled=""[^>]*value="${third.id}"|<input[^>]*value="${third.id}"[^>]*disabled=""`))
       expect(html).toMatch(new RegExp(`<input(?![^>]*disabled)[^>]*value="${first.id}"`))
       // The price list, from the repair records, above the form; a description only where one exists.
-      expect(html).toMatch(/Check.*EUR 10.*Full service.*Everything checked and adjusted\..*EUR 45.*<form/s)
+      if (EXAMPLE.repairs) expect(html).toMatch(/Check.*EUR 10.*Full service.*Everything checked and adjusted\..*EUR 45.*<form/s)
       // The form: the time group, persistent labels with required/optional in words, the notice, the button.
       expect(html).toMatch(/<fieldset[^>]*>.*<legend[^>]*>.*Choose a time/s)
       // The error box's links: "#timeSlot" goes to the whole group (its legend stays in view), and a
@@ -394,7 +399,7 @@ describe('example task 2: book a clinic slot', () => {
       // Never anything from a booking: no name, no e-mail address, no note.
       expect(html).not.toMatch(/Private Booker|private@campuscycle|Private note|Test Person|test@campuscycle/)
       expect(html).not.toMatch(/student project/i)
-      expect(await tabTitle(clinicMetadata({ params: Promise.resolve({ slug: 'test-clinic' }) }))).toBe('Test clinic · Campus Cycle')
+      expect(await tabTitle(clinicMetadata({ params: Promise.resolve({ slug: 'test-clinic' }) }))).toBe(`Test clinic · ${SITE_NAME}`)
     })
 
     it('the clinic page says so when there are no future slots, and when every slot is full', async () => {

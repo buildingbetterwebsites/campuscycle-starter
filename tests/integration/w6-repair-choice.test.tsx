@@ -21,6 +21,7 @@ import { getTestPayload, resetCollections } from '../setup/payload'
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
 import { createBooking } from '../../src/tasks/book-slot/createBooking'
 import { typedValues } from '../../src/tasks/book-slot/typedValues'
+import { EXAMPLE } from '../setup/example'
 
 refuseUnlessThrowAwayTestDatabase()
 
@@ -68,7 +69,8 @@ function withExports(lines: string[]): string {
   return `import * as React from 'react'\n${lines.join('\n')}\nexport { RepairChoice }\nvoid React\n`
 }
 
-describe('W6 switched on: the ticked repairs survive a failed send', () => {
+// W6 is about the repairs: a copy without them (npm run remove-example) skips it (tests/setup/example.ts).
+describe.runIf(EXAMPLE.repairs)('W6 switched on: the ticked repairs survive a failed send', () => {
   let folder: string
   let w6: {
     RepairChoice: ComponentType<{ repairs: { id: number; name: string; price: number }[] }>

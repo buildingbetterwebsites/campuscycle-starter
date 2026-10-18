@@ -6,7 +6,9 @@ import path from 'node:path'
 import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Payload } from 'payload'
-import { seed } from '../../src/seed/seed'
+import { CAMPUS_CYCLE, SITE_NAME } from '../../src/content/campus-cycle'
+import { PAGES, seed } from '../../src/seed/seed'
+import { EXAMPLE } from '../setup/example'
 import { forgetExampleAdded, getTestPayload, resetCollections, resetSiteFacts } from '../setup/payload'
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
 
@@ -31,7 +33,15 @@ import { tabTitle } from '../setup/title'
 // These tests delete every example record: never on a real database.
 refuseUnlessThrowAwayTestDatabase()
 
-const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages', 'media', 'users']
+// Only the example collections this copy still has (tests/setup/example.ts).
+const clean = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.workshops ? ['workshops', 'topics'] : []), ...(EXAMPLE.repairs ? ['repairs'] : []), 'pages', 'media', 'users']
+
+// A page's texts as the seed writes them (src/seed/seed.ts), so a site that rewrote them still passes.
+const seeded = (slug: string) => {
+  const page = PAGES.find((candidate) => candidate.slug === slug)
+  if (!page) throw new Error(`The seed has no page "${slug}"`)
+  return page
+}
 
 async function resetAll(p: Payload) {
   await resetCollections(clean)
@@ -64,20 +74,24 @@ describe('the public pages', () => {
   })
   afterAll(async () => resetAll(p))
 
-  it('home: the site name, the way to the workshops, and "opens soon" while there is no clinic', async () => {
+  it("home: the home page record's title, and \"opens soon\" while there is no clinic", async () => {
     const page = html(await HomePage())
-    expect(page).toContain('Campus Cycle')
-    expect(page).toContain('href="/workshops"')
+    expect(page).toContain(seeded('home').title)
     expect(page).toContain('The repair clinic opens soon')
     expect(page).not.toContain('href="/clinics/')
+    // The pricing rule comes from the Site facts global.
+    expect(page).toContain(CAMPUS_CYCLE.pricingRule)
+  })
+
+  it.runIf(EXAMPLE.workshops)('home: the way to the workshops, each with its price and day, and the topics as quick links', async () => {
+    const page = html(await HomePage())
+    expect(page).toContain('href="/workshops"')
     // Each workshop links to its own page, with its price and day from its record.
     expect(page).toContain('href="/workshops/repair-a-puncture"')
     expect(page).toContain('EUR 15')
     expect(page).toContain('Tuesday')
     // The topics are quick links into the filtered workshop list.
     expect(page).toContain('href="/workshops?topic=tyres-and-wheels"')
-    // The pricing rule comes from the Site facts global.
-    expect(page).toContain('Bring your own parts and pay EUR 5 less per bicycle.')
   })
 
   it('one source per fact: a pricing rule changed in Site facts shows on the home page; a changed e-mail on Contact', async () => {
@@ -90,10 +104,10 @@ describe('the public pages', () => {
       })
       const home = html(await HomePage())
       expect(home).toContain('Parts cost extra (changed by an editor).')
-      expect(home).not.toContain('Bring your own parts')
+      expect(home).not.toContain(CAMPUS_CYCLE.pricingRule)
       const contact = html(await ContactPage())
       expect(contact).toContain('href="mailto:workshops@changed.example"')
-      expect(contact).not.toContain('hello@campuscycle.example')
+      expect(contact).not.toContain(CAMPUS_CYCLE.email)
     } finally {
       await p.updateGlobal({
         slug: 'site-facts',
@@ -106,12 +120,13 @@ describe('the public pages', () => {
   it('/contact shows its page record, and the e-mail address and place from Site facts as a labelled list', async () => {
     const page = html(await ContactPage())
     expect(page).toContain('<h1')
-    expect(page).toContain('Contact')
-    expect(page).toContain('Questions about a workshop or the repair clinic? Send us an e-mail.')
-    expect(page).toContain('There is no contact form on this site: send an e-mail instead.')
-    expect(page).toMatch(/<dt[^>]*>E-mail<\/dt><dd[^>]*><a href="mailto:hello@campuscycle.example">hello@campuscycle.example<\/a><\/dd>/)
-    expect(page).toMatch(/<dt[^>]*>Place<\/dt><dd[^>]*>Workshop B, Student Centre<\/dd>/)
-    expect(await tabTitle(contactMetadata())).toBe('Contact · Campus Cycle')
+    expect(page).toContain(seeded('contact').title)
+    expect(page).toContain(seeded('contact').intro)
+    // The labelled list, without its classes: the e-mail address as a link, then the place.
+    const list = page.replace(/ class="[^"]*"/g, '')
+    expect(list).toContain(`<dt>E-mail</dt><dd><a href="mailto:${CAMPUS_CYCLE.email}">${CAMPUS_CYCLE.email}</a></dd>`)
+    expect(list).toContain(`<dt>Place</dt><dd>${CAMPUS_CYCLE.place}</dd>`)
+    expect(await tabTitle(contactMetadata())).toBe(`${seeded('contact').title} · ${SITE_NAME}`)
   })
 
   it('home: links to the newest clinic once one exists', async () => {
@@ -158,9 +173,9 @@ describe('the public pages', () => {
 
   it('/about shows the about page record, with a title for the browser tab', async () => {
     const page = html(await PlainPage(params('about')))
-    expect(page).toContain('About Campus Cycle')
+    expect(page).toContain(seeded('about').title)
     expect(page).toContain('Photo credits')
-    expect(await tabTitle(generateMetadata(params('about')))).toBe('About Campus Cycle · Campus Cycle')
+    expect(await tabTitle(generateMetadata(params('about')))).toBe(`${seeded('about').title} · ${SITE_NAME}`)
   })
 
   it('an unknown page calls notFound(); /home is sent to / (the home page has its own address)', async () => {
@@ -201,17 +216,18 @@ describe('the public pages', () => {
     expect(await digestOf(Promise.resolve().then(() => DeeperAddress()))).toBe('NEXT_HTTP_ERROR_FALLBACK;404')
   })
 
-  it('the 404 page offers a way back to Home and to the workshops', () => {
+  it('the 404 page offers a way back to Home (and to the workshops while the site has them)', () => {
     const page = html(<NotFound />)
     expect(page).toContain('href="/"')
-    expect(page).toContain('href="/workshops"')
+    if (EXAMPLE.workshopPages) expect(page).toContain('href="/workshops"')
+    else expect(page).not.toContain('href="/workshops"')
   })
 
   it('the footer reads nothing from the database: no e-mail address or place, but a link to Contact', () => {
     const footer = html(<Footer />)
     expect(footer).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.-]+/)
     expect(footer).not.toContain('mailto:')
-    expect(footer).not.toContain('Workshop B')
+    expect(footer).not.toContain(CAMPUS_CYCLE.place)
     expect(footer).toContain('href="/contact"')
     expect(footer).toContain('href="/privacy"')
   })

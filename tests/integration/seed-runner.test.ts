@@ -8,6 +8,7 @@ import { SEED_VERIFIED, seedVerified } from '../../scripts/lib/seedResult.mjs'
 import { SEED_TOO_SLOW_MESSAGE } from '../../scripts/lib/watchdog.mjs'
 import { forgetExampleAdded, getTestPayload, resetCollections, resetSiteFacts } from '../setup/payload'
 import { refuseUnlessThrowAwayTestDatabase } from '../setup/safety'
+import { EXAMPLE } from '../setup/example'
 
 // These tests delete every user and every example record: never on a real database.
 refuseUnlessThrowAwayTestDatabase()
@@ -60,7 +61,8 @@ const folder = mkdtempSync(path.join(tmpdir(), 'bw-starter-seed-runner-'))
 // example `vitest run -t ...`): Vitest skips a describe block's own afterAll when all its tests are
 // skipped.
 afterAll(() => rmSync(folder, { recursive: true, force: true }))
-const clean = ['bookings', 'timeSlots', 'clinics', 'workshops', 'topics', 'repairs', 'pages', 'media', 'users']
+// The example's workshops, topics and repairs only while the site has them (tests/setup/example.ts).
+const clean = ['bookings', 'timeSlots', 'clinics', ...(EXAMPLE.workshops ? ['workshops', 'topics'] : []), ...(EXAMPLE.repairs ? ['repairs'] : []), 'pages', 'media', 'users']
 const admin = { FIRST_ADMIN_EMAIL: 'seed-runner@campuscycle.example', FIRST_ADMIN_PASSWORD: 'test-password-0123456789' }
 
 describe('the seed runner (scripts/seed.mjs)', () => {

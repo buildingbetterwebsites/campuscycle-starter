@@ -12,12 +12,21 @@
 // A learner's copy already has the fields after W5 and W6 (in src/collections). The fixture never adds
 // a second field of the same name next to the learner's own: it takes the learner's out first, then
 // puts in the shape it tests (or none, for 'shipped').
+/// <reference types="vite/client" />
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, type CollectionConfig, type Field } from 'payload'
 import sharp from 'sharp'
 import { vi } from 'vitest'
 import { restrictLinkedDeletion } from '@/lib/modelSchema'
+
+// Every collection file, each loaded only when asked for (Vite's import.meta.glob: a file that is not
+// there is simply not in the list).
+const COLLECTION_FILES = import.meta.glob('/src/collections/*.ts')
+// The app's own config, to keep only the collections it really uses.
+const APP_CONFIG = readFileSync(fileURLToPath(new URL('../../src/payload.config.ts', import.meta.url)), 'utf8')
 
 export type Shape = 'agreed' | 'other' | 'shipped'
 
@@ -61,30 +70,25 @@ function withField(collection: CollectionConfig, field: Field & { name: string }
  */
 export async function collections(shape: Shape): Promise<CollectionConfig[]> {
   vi.resetModules()
-  const { Users } = await import('@/collections/Users')
-  const { Media } = await import('@/collections/Media')
-  const { Pages } = await import('@/collections/Pages')
-  const { Topics } = await import('@/collections/Topics')
-  const { Workshops } = await import('@/collections/Workshops')
-  const { Clinics } = await import('@/collections/Clinics')
-  const { TimeSlots } = await import('@/collections/TimeSlots')
-  const { Bookings } = await import('@/collections/Bookings')
-  const { Repairs } = await import('@/collections/Repairs')
-  const { Throttle } = await import('@/collections/Throttle')
-  const { Members } = await import('@/collections/Members')
-  return [
-    Users,
-    Media,
-    Pages,
-    Topics,
-    Workshops,
-    shape === 'shipped' ? without(Clinics, 'whatToBring') : withField(Clinics, whatToBring[shape], 'timeSlots'),
-    TimeSlots,
-    shape === 'shipped' ? without(Bookings, 'repairs') : withField(Bookings, repairs[shape]),
-    shape === 'shipped' ? without(Repairs, 'bookings') : withField(Repairs, { name: 'bookings', type: 'join', collection: 'bookings', on: 'repairs' }),
-    Throttle,
-    Members,
-  ]
+  // The app's collections in the app's order, loaded only when their file is there: a copy without the
+  // example's workshops, topics and repairs (npm run remove-example) still gets its config, and the
+  // tests that need those collections stand aside (tests/setup/example.ts).
+  const load = async (name: string): Promise<CollectionConfig | null> => {
+    const file = COLLECTION_FILES[`/src/collections/${name}.ts`]
+    if (!file) return null
+    return ((await file()) as Record<string, CollectionConfig>)[name]
+  }
+  const order = ['Users', 'Media', 'Pages', 'Topics', 'Workshops', 'Clinics', 'TimeSlots', 'Bookings', 'Repairs', 'Throttle', 'Members']
+  const found: CollectionConfig[] = []
+  for (const name of order) {
+    const collection = await load(name)
+    if (!collection || !APP_CONFIG.includes(name)) continue
+    if (name === 'Clinics') found.push(shape === 'shipped' ? without(collection, 'whatToBring') : withField(collection, whatToBring[shape], 'timeSlots'))
+    else if (name === 'Bookings') found.push(shape === 'shipped' ? without(collection, 'repairs') : withField(collection, repairs[shape]))
+    else if (name === 'Repairs') found.push(shape === 'shipped' ? without(collection, 'bookings') : withField(collection, { name: 'bookings', type: 'join', collection: 'bookings', on: 'repairs' }))
+    else found.push(collection)
+  }
+  return found
 }
 
 /** The after-W6 config (or, with 'shipped', the app as shipped) on the test database, in the schema `schemaName`. */
