@@ -5,7 +5,10 @@ export const restrictLinkedDeletion: NonNullable<PostgresAdapterArgs['beforeSche
   // Payload normally clears these links on deletion. The course model requires explicit unlinking.
   for (const [tableName, target] of [['time_slots', 'clinics'], ['bookings', 'time_slots'], ['workshops_rels', 'topics']]) {
     const table = adapter.rawTables[tableName]
-    if (!table) throw new Error(`Missing model table: ${tableName}`)
+    // A site that removed or renamed one of these example collections (npm run remove-example, or its
+    // own model) has no such table: there is nothing to restrict, and the site still starts. Your own
+    // links get the same rule when you add a line for them to the list above.
+    if (!table) continue
     for (const column of Object.values(table.columns)) {
       if (column.reference?.table === target) {
         column.reference.onDelete = 'restrict'
