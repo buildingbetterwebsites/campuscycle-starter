@@ -5,8 +5,7 @@ a password, a secret or a connection string in this file.
 
 ## Who owns what
 
-Each responsibility (content, access, updates, monitoring, backup and restore, ownership), with an
-owner named as a role, who can log in, and when it was last tested, or "never".
+First the services the site runs on, and whose account each one is in.
 
 | Service | What it holds | Owner (account name, not the password) |
 | --- | --- | --- |
@@ -15,8 +14,20 @@ owner named as a role, who can log in, and when it was last tested, or "never".
 | Neon | the database (connected through Vercel) | TODO: |
 | Vercel Blob | the images | TODO: |
 
+Then the six responsibilities, one row each. Keep the six names in the first column as they are. Name
+the owner as a role ("the club's secretary"), not a person; say who can log in to do it; and write when
+it was last tested, as a date, or "never".
+
+| Responsibility | Owner (a role) | Who can log in | Last tested |
+| --- | --- | --- | --- |
+| Content | TODO: | TODO: | TODO: |
+| Access | TODO: | TODO: | TODO: |
+| Updates | TODO: | TODO: | TODO: |
+| Monitoring | TODO: | TODO: | TODO: |
+| Backup and restore | TODO: | TODO: | TODO: |
+| Ownership | TODO: | TODO: | TODO: |
+
 - TODO: who edits which content in `/admin`, how they get an account, and what needs a developer.
-- TODO: each other responsibility, its owner, and when it was last tested.
 
 ## Left out, and in which order
 
