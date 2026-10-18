@@ -88,7 +88,12 @@ async function sendBooking(previous: BookingResult | null, formData: FormData): 
 //         Repairs <span className="font-normal text-ink-soft">(optional)</span>
 //       </legend>
 //       {repairs.map((repair) => {
-//         const label = repair.name // To show the price in the choice too, add the record's price here (formatPrice(repair.price)): it reads the stored price, nothing is copied. Also import formatPrice from '@/lib/format', as the clinic page does.
+//         // To show each repair's price too, replace the line under this comment with this line:
+//         //   const label = repair.name + ', ' + formatPrice(repair.price)
+//         // and add this line at the top of the file, under the other import lines:
+//         //   import { formatPrice } from '@/lib/format'
+//         // It reads each repair's own price, from the same record as the price list: nothing is copied.
+//         const label = repair.name
 //         return (
 //           <label key={repair.id} className="flex min-h-11 items-center gap-3">
 //             <input type="checkbox" name="repairs" value={repair.id} defaultChecked={sent.repairs?.includes(String(repair.id))} className="size-5 accent-ink" />

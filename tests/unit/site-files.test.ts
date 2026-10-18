@@ -109,10 +109,20 @@ describe('the markers a course exercise points at', () => {
       expect(lines.some((line) => line.trim() === '<RepairChoice repairs={props.repairs} />')).toBe(true)
       return
     }
-    // The label line, exactly: commented out, the repair's name only, and the full comment.
-    const labelLine =
-      "//         const label = repair.name // To show the price in the choice too, add the record's price here (formatPrice(repair.price)): it reads the stored price, nothing is copied. Also import formatPrice from '@/lib/format', as the clinic page does."
+    // The label line, exactly: commented out, the repair's name only. Above it, the price fix as two
+    // whole lines to copy (W6's last step in the course), without backticks.
+    const labelLine = '//         const label = repair.name'
     expect(lines.filter((line) => line.trim() === labelLine)).toHaveLength(1)
+    const priceFix = [
+      "//         // To show each repair's price too, replace the line under this comment with this line:",
+      "//         //   const label = repair.name + ', ' + formatPrice(repair.price)",
+      '//         // and add this line at the top of the file, under the other import lines:',
+      "//         //   import { formatPrice } from '@/lib/format'",
+    ]
+    const fixAt = lines.indexOf(priceFix[0])
+    expect(lines.slice(fixAt, fixAt + priceFix.length)).toEqual(priceFix)
+    expect(lines.indexOf(labelLine)).toBeGreaterThan(fixAt)
+    expect(lines.indexOf(labelLine) - fixAt).toBeLessThanOrEqual(priceFix.length + 1)
     // The instructions: replace the whole placeholder line, and the server's two W6 lines.
     expect(source).toContain('{/* W6: <RepairChoice repairs={props.repairs} /> */}')
     expect(source).toContain('// Then replace the whole line {/* W6: <RepairChoice repairs={props.repairs} /> */} in the form below\n// with <RepairChoice repairs={props.repairs} />.')
