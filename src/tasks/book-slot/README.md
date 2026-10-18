@@ -94,7 +94,8 @@ its migration):
 1. In `src/components/site/BookingForm.tsx`, remove the `//` in front of every line of the function
    `RepairChoice` (marked W6). Then replace the whole line
    `{/* W6: <RepairChoice repairs={props.repairs} /> */}` with `<RepairChoice repairs={props.repairs} />`.
-   Each choice shows the repair's name; the price list sits above the form on the same page.
+   Each choice shows the repair's name; the price list sits above the form on the same page. To show
+   each repair's price in the choice too, copy the two lines the comment above `const label` gives.
 2. In `src/tasks/book-slot/createBooking.ts`, switch on the two lines the W6 comment in
    createBooking.ts names: remove the `//` in front of `const repairs = formData.getAll('repairs')…` and in front of `repairs,` in
    `payload.create`.

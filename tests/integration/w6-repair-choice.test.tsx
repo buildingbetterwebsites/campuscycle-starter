@@ -44,6 +44,24 @@ function switchedOn(source: string): string {
   return withExports(lines)
 }
 
+/**
+ * The price fix the comment above `const label = repair.name` gives, done as it says: that line
+ * replaced by the comment's label line, and the comment's import line added under the other imports.
+ * Null in a learner's copy that already shows the price (or changed the label another way).
+ */
+function withPriceFix(source: string): string | null {
+  const lines = source.split('\n')
+  const quoted = (start: string) => lines.find((line) => line.trimStart().startsWith(`//   ${start}`))?.trim().replace(/^\/\/\s+/, '')
+  const newLabel = quoted('const label = ')
+  const newImport = quoted('import { formatPrice }')
+  const label = lines.findIndex((line) => line.trim() === 'const label = repair.name')
+  if (!newLabel || !newImport || label < 0) return null
+  lines[label] = lines[label].replace('const label = repair.name', newLabel)
+  const lastImport = lines.reduce((last, line, i) => (line.startsWith('import ') ? i : last), -1)
+  lines.splice(lastImport + 1, 0, newImport)
+  return lines.join('\n')
+}
+
 function withExports(lines: string[]): string {
   // The copy lives outside the project, where the project's JSX setting does not reach it: the
   // React import lets its JSX compile there too.
@@ -87,6 +105,20 @@ describe('W6 switched on: the ticked repairs survive a failed send', () => {
     const html = renderToString(createElement(w6.BookingForm, { clinic: 'test-clinic', slots: [{ id: 1, label: 'Saturday 10 October, 15:00', placesLeft: 2 }], requestId: randomUUID(), repairs }))
     expect(html).toMatch(/<form[^>]*>.*name="note".*<legend[^>]*>.*Repairs.*name="repairs".*Book this slot.*<\/form>/s)
     expect(html.match(/<input type="checkbox"[^>]*name="repairs"/g)).toHaveLength(3)
+  })
+
+  it("with the comment's price fix copied in, shows each repair's name and price", async () => {
+    const source = readFileSync(path.join(root, 'src/components/site/BookingForm.tsx'), 'utf8')
+    const fixed = withPriceFix(switchedOn(source))
+    // A learner's copy that already shows the price has no fix left to copy; the starter has it.
+    if (!source.includes("//   const label = repair.name + ', ' + formatPrice(repair.price)")) return
+    expect(fixed).not.toBeNull()
+    if (fixed === null) return
+    const file = path.join(folder, 'BookingForm.w6-price.tsx')
+    writeFileSync(file, fixed)
+    const priced: typeof w6 = await import(/* @vite-ignore */ file)
+    const html = renderToString(createElement(priced.SentValues, { value: { timeSlot: '', name: '', email: '', note: '' } }, createElement(priced.RepairChoice, { repairs })))
+    for (const label of ['Check, EUR 10', 'Each small repair, EUR 5', 'Full service, EUR 45']) expect(html).toContain(label)
   })
 
   it('shows each repair by name, none ticked on a fresh form', () => {
