@@ -17,10 +17,7 @@ sign up at vercel.com with **Continue with GitHub** and choose the free **Hobby*
 them separately. Both are available on the free Hobby plan.
 
 **About the screens:** Vercel and GitHub change their screens now and then. If a button has a
-slightly different name, look for the closest one. The Vercel steps were tried on a paid Vercel
-account and checked against Vercel's documentation for the free Hobby plan. Where a screen may differ,
-the step says so. The screenshots are not taken yet: until they are, you see a short description of
-each one in their place.
+slightly different name, look for the closest one. Where a screen may differ, the step says so.
 
 **Before you start, choose `<your name>`:** your first name, or first name and last name, in small
 letters, with hyphens instead of spaces. For example `mina` or `mina-peeters`. You use it twice:
@@ -36,8 +33,6 @@ for the repository and for the Vercel project, `campuscycle-<your name>`, for ex
 Open the starter's page on GitHub: <https://github.com/buildingbetterwebsites/campuscycle-starter>.
 Click the green **Use this template** button, then **Create a new repository**.
 
-![The starter's GitHub page, with the green "Use this template" button open and "Create a new repository" in its menu](img/first-hour-01.png)
-
 **You should see:** a page titled "Create a new repository", with the starter named as its template.
 
 **Something else?** No **Use this template** button? Check that you are logged in to GitHub. Do not
@@ -50,8 +45,6 @@ use **Fork**: your copy must be made from the template.
 3. Choose **Public**.
 4. Leave **Include all branches** off.
 5. Click **Create repository** (on some screens **Create repository from template**).
-
-![GitHub's "Create a new repository" form, filled in: the owner, the name campuscycle-mina, Public chosen](img/first-hour-02.png)
 
 **You should see:** your new repository, with this starter's files and its README.
 
@@ -68,8 +61,6 @@ name.
 2. Click **Add New…**, then **Project** (on some screens a **New Project** button).
 3. Under **Import Git Repository**, find `campuscycle-<your name>` and click **Import**.
 
-![Vercel's "Import Git Repository" list, with the repository campuscycle-mina and its Import button](img/first-hour-03.png)
-
 **You should see:** a page to configure the new project (titled **New Project** or **Configure
 Project**), with the project's name, its framework preset and its environment variables.
 
@@ -84,8 +75,6 @@ repository, and come back.
 2. **Framework Preset** (on some screens **Application Preset**): Vercel finds **Next.js** by
    itself. Leave it.
 3. Leave the root directory and the build settings as they are.
-
-![Vercel's "Configure Project" screen: the project name campuscycle-mina and the framework preset Next.js](img/first-hour-04.png)
 
 ### Step 5: add the three settings
 
@@ -108,8 +97,6 @@ shows the password again, and you log in to your live site's `/admin` with them 
 
 If Vercel lets you choose where a setting applies, choose **Production and Preview**.
 
-![Vercel's "Environment Variables" section with the three rows PAYLOAD_SECRET, FIRST_ADMIN_EMAIL and FIRST_ADMIN_PASSWORD filled in, and "Production and Preview" chosen](img/first-hour-05.png)
-
 **Something else?**
 
 - More rows than these three (for example after pasting a whole file): delete the extra rows.
@@ -126,8 +113,6 @@ Click **Deploy**.
 build log ends with this message:
 
 > NOT CONFIGURED YET: there is no database. In Vercel: Storage → connect Neon (Postgres) to this project, then Redeploy.
-
-![Vercel's build log of the first deployment, failed, ending with "NOT CONFIGURED YET: there is no database."](img/first-hour-06.png)
 
 Go to your project's page in Vercel: open your Vercel dashboard (click the Vercel logo at the top
 left) and click your project's name. Some screens also offer a **Continue to Dashboard** button.
@@ -148,7 +133,8 @@ file chooses Frankfurt. Also choose Frankfurt for the database: you cannot move 
 ### Step 7: create the Neon database
 
 1. In your project, open the **Storage** tab.
-2. Click **Create Storage**. (Older screens say **Create Database**.)
+2. Click **Create Database**. (The button says **Create Database** while the project has no store yet,
+   and **Create Storage** once it has one.)
 3. **Browse Storage** shows Neon and Blob. Choose **Neon**, then continue.
 4. Accept the free plan. If Vercel asks to create a Neon account for you, accept: Vercel makes it,
    and you do not need to sign up at Neon yourself.
@@ -157,8 +143,6 @@ file chooses Frankfurt. Also choose Frankfurt for the database: you cannot move 
 6. **Auth** (Neon Auth): it is switched on. **Switch it off.** The starter has its own users and its
    own log-in.
 7. Create the database.
-
-![Vercel's Storage tab, "Browse Storage" with Neon and Blob, and Neon's form with the region Frankfurt (eu-central-1) and Auth switched off](img/first-hour-07.png)
 
 ### Step 8: connect Neon to Production and Preview
 
@@ -171,8 +155,6 @@ Vercel now asks how to connect the database to your project.
 3. **Create database branch for deployment** (on some screens under **Advanced Options**): tick
    **Preview**. Leave **Production** unticked.
 4. Click **Connect**.
-
-![The "Connect Project" dialog: Production and Preview ticked, the prefix left as it is, and "Create database branch for deployment: Preview" ticked](img/first-hour-08.png)
 
 **You should see:** the Neon database listed in your project's **Storage** tab.
 
@@ -194,8 +176,6 @@ address. Bookings and edits on a preview never reach your live site. You make no
    (`BLOB_READ_WRITE_TOKEN`), your site cannot store images.
 6. Create the store.
 
-![Vercel's form for a new Blob store: the region Frankfurt, Public chosen instead of the suggested Private, and "Add a read-write token env var" ticked](img/first-hour-09.png)
-
 **You should see:** the Blob store in your project's **Storage** tab. Vercel connects it to your
 project at once, for **Production** and **Preview**. The next step takes Preview off.
 
@@ -212,8 +192,6 @@ Previews must not store images in your live site's store. So connect it to Produ
    `BLOB_READ_WRITE_TOKEN` for Production only. (You also see the database's settings there, such as
    `DATABASE_URL`. Never copy any of their values.)
 
-![The Blob store's "Update Project Connection" dialog: only Production ticked](img/first-hour-10.png)
-
 **Previews show no images.** That is expected: only your live site (and your own computer) can
 store and show them.
 
@@ -227,8 +205,6 @@ store and show them.
 
 **Never use "Promote to Production"** for this starter, now or later. Use **Redeploy**: it runs the
 build whose log you check below.
-
-![Vercel's Deployments tab: the failed deployment's "…" menu open, with "Redeploy" in it](img/first-hour-11.png)
 
 Wait until the deployment says **Ready**. That takes a few minutes. Then open its build log (click the deployment, then **Build Logs**). It
 shows
@@ -254,8 +230,6 @@ What they mean:
 - **The seed** adds the Campus Cycle example content: the workshops, topics, prices, pages and photos.
   It adds them once. Later builds print `SEED: skipped (the example content was added before; your editors' changes are kept)`.
 
-![Vercel's build log of the redeploy, with the lines "MIGRATIONS: verified committed migrations" and "SEED: verified"](img/first-hour-12.png)
-
 **Something else?** The build stopped with a message in capitals (`NOT CONFIGURED YET`,
 `DATABASE SET UP WRONG`, `MIGRATIONS: FAILED`, `SEED: FAILED`). Look it up in
 [the troubleshooting guide](troubleshooting.md). A `NOT CONFIGURED YET` message about `PAYLOAD_SECRET`
@@ -269,8 +243,6 @@ means your secret is shorter than 32 characters: see
 
 Always use this address. Vercel also shows longer addresses for each deployment (with a code and
 your account's name in them); those may ask other people to log in to Vercel.
-
-![The live site's home page: the Campus Cycle title, the two buttons "Find a workshop" and "Repair clinic", and the panel "The repair clinic opens soon"](img/first-hour-13.png)
 
 **You should see:** the Campus Cycle home page, with workshops and a panel that says
 **The repair clinic opens soon**.
@@ -288,8 +260,6 @@ name stays `campuscycle-<your name>`.
 1. Open `https://campuscycle-<your name>.vercel.app/admin`.
 2. Type your `FIRST_ADMIN_EMAIL` under **Email** and your `FIRST_ADMIN_PASSWORD` under **Password**.
 3. Click **Login**.
-
-![The /admin log-in form with the fields Email and Password and the Login button](img/first-hour-14.png)
 
 **You should see:** the dashboard, with **Collections** (Users, Media, Pages, Topics, Workshops,
 Clinics, Time Slots, Bookings, Repairs) and **Globals** (Site facts).
@@ -326,8 +296,6 @@ clinic page and the Contact page all show the new text. Leave them as they are f
 If your course gave you a personal code, type it exactly as you got it: the course's check looks for
 it in this summary. Learning on your own, without a code? Write the summary without one.
 
-![The /admin form "Creating new Clinic", filled in: Saturday repair clinic, saturday-repair-clinic, Saturday, 15:00, 17:00, and a summary with a code](img/first-hour-15.png)
-
 **You should see:** the clinic's name as the page's title. The clinic exists.
 
 **Something else?** A red message under **Slug**: use only small letters, digits and hyphens.
@@ -341,14 +309,10 @@ it in this summary. Learning on your own, without a code? Write the summary with
 5. Click **Save**.
 6. Make a second one the same way: the same Saturday, at **15:30**.
 
-![The /admin form "Creating new Time Slot": the clinic Saturday repair clinic, a Saturday at 15:00, and 2 places](img/first-hour-16.png)
-
 **Check the times.** Go back to the **Time Slots** list. Its column **When (Brussels time)** shows each
 slot in Brussels time, the time your site shows. The date picker uses your own computer's time zone,
 so if your computer is set to another time zone, the picker's time and the column's time differ.
 Change **Starts At** until the column says 15:00 and 15:30.
-
-![The /admin Time Slots list with the column "When (Brussels time)" showing the two slots at 15:00 and 15:30](img/first-hour-17.png)
 
 Later, when you open a booking in `/admin`, its time slot list shows times only, not the clinic's name.
 With one clinic, that is enough.
@@ -358,8 +322,6 @@ With one clinic, that is enough.
 1. Open your live site's home page and reload it.
 2. The clinic panel now shows **Saturday repair clinic** with your summary and a **Book a time slot**
    button. Click it.
-
-![The live clinic page: "About the clinic" with the summary and the code, the Prices list, and "Book a time slot" with two times and "2 places left" each](img/first-hour-18.png)
 
 **You should see:** the clinic's page at `/clinics/saturday-repair-clinic`: your summary (with your
 code) under **About the clinic**, the **Prices**, and **Book a time slot** with your two times, each
@@ -391,10 +353,9 @@ You may try a booking. Use made-up details only: this is a practice project, and
    const TAGLINE = 'Bicycle workshops on campus · a site by Mina Peeters'
    ```
 
-5. Keep the line above it, and keep both `'` marks. If your name has a `'` in it, type `\'` instead
-   (a backslash, then the quote mark): `O\'Brien`.
-
-![GitHub's web editor on src/components/site/Hero.tsx, with the TAGLINE line changed to a new name](img/first-hour-19.png)
+5. Keep the line above it, and keep both `'` marks. Type no apostrophe (`'`) in your tagline: it
+   would end the text early, and the site would no longer build. Write `a site by Lotte`, not
+   `Lotte's site`.
 
 ### Step 18: commit directly to main
 
@@ -402,8 +363,6 @@ You may try a booking. Use made-up details only: this is a practice project, and
 2. Write a short message, for example `Put my name in the tagline`.
 3. Choose **Commit directly to the `main` branch**.
 4. Click **Commit changes**.
-
-![GitHub's "Commit changes" dialog, with "Commit directly to the main branch" chosen](img/first-hour-20.png)
 
 **Something else?** You chose **Create a new branch for this commit and start a pull request** by
 mistake? Then Vercel builds a preview of that branch, with its own copy of your database, and your
@@ -419,8 +378,6 @@ newest one is **Building**, then **Ready**, after a few minutes.
 **You should see:** your live home page, reloaded, shows your name in the line above the title (in
 capital letters: the site's style shows that line in capitals).
 
-![The live home page with the tagline "BICYCLE WORKSHOPS ON CAMPUS · A SITE BY MINA PEETERS" above the title](img/first-hour-21.png)
-
 ### Step 20: wait for CI to turn green
 
 CI ("continuous integration") checks every change automatically on GitHub.
@@ -429,8 +386,6 @@ CI ("continuous integration") checks every change automatically on GitHub.
 2. Next to your latest commit, you see a small sign: a yellow dot while CI runs, a green tick when
    every check passed, a red cross when one failed.
 3. Click the sign to see each check. Or open the **Actions** tab, then the **CI** run of your commit.
-
-![The commit on GitHub with its green tick, and the list of CI checks: test, types-fresh, migrations and browser-checks passed; ai-note and leftovers skipped](img/first-hour-22.png)
 
 Wait until the tick is green. That takes several minutes: one check builds your whole site and tries
 it in a browser.
