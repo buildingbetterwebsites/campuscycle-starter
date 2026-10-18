@@ -22,6 +22,7 @@ Where the text below left a choice, the route does this:
 12. When the database cannot be read, the details go only to the server's log, never into the 503 answer.
 13. A `code` made only of spaces counts as no code: it gets the answer for the whole site, not a 400.
 14. Only `include=team` (any letter case, spaces around it trimmed) adds the team section. Any other `include` value, or none, answers exactly the three keys, as before the team section existed: a checker that asks a site made from an older starter gets the three keys back, and can tell from the missing `team` that the site has no team section.
+15. A site without a `clinics` or a `bookings` collection (a team that removed or renamed them for its own model) answers `{ "clinic": false, "whatToBring": null, "booking": false }`, with a code or without, never 503. Its team section answers as usual, from `src/course-check.config.ts`.
 
 ## The route
 
