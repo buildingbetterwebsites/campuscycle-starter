@@ -142,16 +142,35 @@ describe('the prepared patch', () => {
 })
 
 describe('npm run remove-example, without --yes', () => {
-  it('is a dry run: it lists what it would do and changes nothing', () => {
+  // Three states of a copy, and the command changes nothing in any of them:
+  //   the starter as published: a dry run that lists what it would do;
+  //   the example already removed (a team's copy afterwards): nothing to do;
+  //   a file the command changes was edited first (every learner's copy after W5 or W6): it refuses
+  //   and names the files. Before November 2026 this test expected a dry run there too, so it failed
+  //   in learners' copies through no fault of theirs.
+  it('lists what it would do, or says why it cannot, and changes nothing', () => {
     const before = git(['status', '--porcelain']).stdout
+    const applies = git(['apply', '--check', PATCH]).status === 0
     const run = spawnSync(process.execPath, ['scripts/remove-example.mjs'], { cwd: root, encoding: 'utf8' })
-    expect(run.status).toBe(0)
-    if (existsSync(path.join(root, 'src/collections/Workshops.ts'))) {
+    if (!existsSync(path.join(root, 'src/collections/Workshops.ts'))) {
+      expect(run.status).toBe(0)
+      expect(run.stdout).toContain('already removed')
+    } else if (applies) {
+      expect(run.status).toBe(0)
       expect(run.stdout).toContain('This was a dry run: nothing was changed.')
       expect(run.stdout).toContain('src/collections/Workshops.ts')
     } else {
-      expect(run.stdout).toContain('already removed')
+      expect(run.status).toBe(1)
+      expect(run.stdout).toContain('Nothing removed:')
     }
     expect(git(['status', '--porcelain']).stdout).toBe(before)
+  })
+
+  // The template as published (the maintainers' publish steps set STARTER_TEMPLATE=1): there the
+  // command must still be able to run, or the recipe "Before you start" is broken for every new team.
+  it.runIf(process.env.STARTER_TEMPLATE === '1')('in the template, the dry run goes through', () => {
+    const run = spawnSync(process.execPath, ['scripts/remove-example.mjs'], { cwd: root, encoding: 'utf8' })
+    expect(run.status).toBe(0)
+    expect(run.stdout).toContain('This was a dry run: nothing was changed.')
   })
 })
