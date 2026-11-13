@@ -13,16 +13,10 @@ import { getPayload, type Payload } from 'payload'
 import config from '../../src/payload.config'
 import { bookingRef } from '../../src/tasks/book-slot/receipt'
 import { e2eSiteDatabaseProblem } from './databaseGuard'
+import type { Fixture } from './helpers'
 
 export const CLINIC_SLUG = 'e2e-check-clinic'
 const DAY = 24 * 60 * 60 * 1000
-
-export type Fixture = {
-  clinic: { slug: string; name: string }
-  slots: number[]
-  // A confirmation page for a booking the fixture made itself, for the accessibility check.
-  confirmation: string
-}
 
 // The test clinic's bookings, time slots and the clinic itself, in that order: a slot with bookings,
 // or a clinic with slots, cannot be deleted first.

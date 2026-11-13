@@ -1,10 +1,18 @@
 // Shared by the browser checks: where the site is, the test clinic, and a few helpers.
 import { createHash } from 'node:crypto'
 import type { APIRequestContext, Page, TestInfo } from '@playwright/test'
-import type { Fixture } from './fixture'
 
 // The site under test: a production build (next build, then next start) with the seed.
 export const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3100'
+
+// What the set-up (fixture.ts) makes for the checks. The type lives here, so the checks that hold for
+// any site never read fixture.ts, which needs the example's clinics.
+export type Fixture = {
+  clinic: { slug: string; name: string }
+  slots: number[]
+  // A confirmation page for a booking the fixture made itself, for the accessibility check.
+  confirmation: string
+}
 
 // The words the checks expect, exactly as the site shows them (src/content/campus-cycle.ts and the
 // booking form). Module 10's booking chapter quotes them too.

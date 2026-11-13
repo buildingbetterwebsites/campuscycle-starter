@@ -10,11 +10,16 @@
 // PLAYWRIGHT_BASE_URL=http://localhost:3000.
 import { defineConfig, devices } from '@playwright/test'
 import { BASE_URL } from './tests/e2e/helpers'
+import { exampleTests, starterTests } from './scripts/lib/starterTests.mjs'
 
 const inCI = Boolean(process.env.CI)
+// In a site that is no longer the Campus Cycle example, the checks of the example's two tasks are not
+// run: the accessibility scan and checks/checks.json still are (scripts/lib/starterTests.mjs).
+const leftOut = starterTests() === 'site' ? exampleTests().map((file) => `**/${file}`) : []
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  testIgnore: leftOut,
   globalSetup: './tests/e2e/global-setup.ts',
   globalTeardown: './tests/e2e/global-teardown.ts',
   // One check at a time: they share the test clinic's time slots.

@@ -61,8 +61,8 @@ describe('the content model', () => {
   })
 
   // The template as published: none of the learners' additions yet. Only in the maintainers' publish
-  // steps (STARTER_TEMPLATE=1), because every learner's copy has them after W5 and W6.
-  it.runIf(process.env.STARTER_TEMPLATE === '1')("in the template, none of the learners' additions (W5, W6) is there yet", async () => {
+  // steps and the template's CI (STARTER_TESTS=all): every learner's copy has them after W5 and W6.
+  it.runIf(process.env.STARTER_TESTS === 'all')("in the template, none of the learners' additions (W5, W6) is there yet", async () => {
     expect(learnerAdditions(await getTestPayload())).toEqual({ whatToBring: false, repairs: false, reverse: false })
   })
 

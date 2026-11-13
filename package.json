@@ -18,7 +18,7 @@
     "remove-example": "node scripts/remove-example.mjs",
     "generate": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types && cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/typecheck.mjs",
     "test": "vitest run",
     "check": "playwright test"
   },
