@@ -1,3 +1,6 @@
+// The type check for a site that is no longer the Campus Cycle example. It leaves out the starter's
+// tests of the example and of the starter itself: scripts/lib/starterTests.mjs explains, and reads
+// this list for the test runners too.
 {
   "extends": "./tsconfig.json",
   "exclude": [

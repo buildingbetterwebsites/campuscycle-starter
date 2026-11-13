@@ -63,6 +63,7 @@ export function starterTests(env = process.env, root = ROOT) {
  * @returns {string[]}
  */
 export function exampleTests(root = ROOT) {
-  const { exclude } = JSON.parse(readFileSync(path.join(root, SITE_TSCONFIG), 'utf8'))
-  return exclude.filter((/** @type {string} */ entry) => entry.startsWith('tests/'))
+  // A tsconfig file may start with comment lines, which JSON itself does not allow.
+  const json = readFileSync(path.join(root, SITE_TSCONFIG), 'utf8').replace(/^\s*\/\/.*$/gm, '')
+  return JSON.parse(json).exclude.filter((/** @type {string} */ entry) => entry.startsWith('tests/'))
 }
