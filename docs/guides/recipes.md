@@ -311,8 +311,8 @@ that is far less work than a new one (R10 finishes it).
 2. **The address.** Stop `npm run dev` first (**Ctrl+C**): while it runs, Windows does not let you
    rename the folder. In VS Code's Explorer, rename the folder `src/app/(site)/clinics` to `rooms`.
 3. **The links to it.** **Edit** → **Replace in Files**: search `/clinics`, replace with `/rooms`,
-   **files to include:** `src, tests, checks`, **Match Case** on. **Replace All.** (The tests and the
-   browser checks name the address too, so they move with it.)
+   **files to include:** `src, checks`, **Match Case** on. **Replace All.** (The browser checks in
+   `checks/checks.json` name the address too, so they move with it.)
 4. Start `npm run dev` again.
 
 **You should see:** `/rooms` lists the clinic records, `/rooms/<slug>` books them, the old `/clinics`
@@ -530,10 +530,6 @@ export default async function RoomsPage({ searchParams }: Props = {}) {
 }
 ```
 
-One test reads the old page's words for an empty list. In `tests/integration/pages.test.tsx`, change
-`expect(list).toContain('The repair clinic opens soon')` to
-`expect(list).toContain('The rooms open soon')` (after R10 it already says so).
-
 **You should see:** `/rooms` says "All rooms: 2"; choose **Upright piano** and **Show rooms**: the
 address becomes `/rooms?equipment=upright-piano` and the page says "Rooms with Upright piano: 1".
 An address with equipment that does not exist shows all rooms.
@@ -647,18 +643,13 @@ group size to it in `/admin` → **Pages** → **Privacy**.
 "Enter a whole number from 1 to 40, or leave it empty." under the field. Type 8: the booking is saved,
 and in `/admin` → **Bookings** it has **Group size** 8.
 
-Want the field required? Then every test that sends the form must send it too (the `form` helpers in
-`tests/integration/booking.test.ts`, `booking-race.test.ts`, `save-booking.test.ts` and
-`members.test.ts`): keep it optional unless your task really needs it.
-
 ---
 
 ## R10. The booking becomes yours, with the least code
 
 Keep `timeSlots`, `bookings` and the whole `src/tasks/book-slot` folder, as the starter has them.
 Rename the clinic (R5), add your fields (R9), and change the words. For each row below: **Edit** →
-**Replace in Files**, **files to include:** `src, tests`, **Match Case** on, **Replace All**. The tests
-check the words a user reads, so they change with them.
+**Replace in Files**, **files to include:** `src`, **Match Case** on, **Replace All**.
 
 | Search | Replace with |
 | --- | --- |
