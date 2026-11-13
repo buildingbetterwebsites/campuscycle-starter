@@ -166,9 +166,9 @@ describe('npm run remove-example, without --yes', () => {
     expect(git(['status', '--porcelain']).stdout).toBe(before)
   })
 
-  // The template as published (the maintainers' publish steps set STARTER_TEMPLATE=1): there the
+  // The template as published (its CI and the maintainers' publish steps set STARTER_TESTS=all): there the
   // command must still be able to run, or the recipe "Before you start" is broken for every new team.
-  it.runIf(process.env.STARTER_TEMPLATE === '1')('in the template, the dry run goes through', () => {
+  it.runIf(process.env.STARTER_TESTS === 'all')('in the template, the dry run goes through', () => {
     const run = spawnSync(process.execPath, ['scripts/remove-example.mjs'], { cwd: root, encoding: 'utf8' })
     expect(run.status).toBe(0)
     expect(run.stdout).toContain('This was a dry run: nothing was changed.')

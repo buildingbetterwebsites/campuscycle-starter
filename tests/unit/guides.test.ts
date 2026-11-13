@@ -29,8 +29,8 @@ function filesIn(folder: string, keep: (name: string) => boolean): string[] {
   })
 }
 
-// The template as published (the maintainers' publish steps set STARTER_TEMPLATE=1), not a learner's copy.
-const TEMPLATE_MODE = process.env.STARTER_TEMPLATE === '1'
+// The template as published (its CI and the maintainers' publish steps set STARTER_TESTS=all), not a learner's copy.
+const TEMPLATE_MODE = process.env.STARTER_TESTS === 'all'
 
 // The three templates only a team fills in (a team's final hand-in reads them too). Their first line tells a
 // learner working alone to delete them, so in a learner's copy they count only while they exist.
@@ -607,8 +607,8 @@ describe('the project document templates', () => {
 
   // A learner fills these in, and the course's final check passes only once no TODO: is left. So this
   // check would fail in every finished project: it runs only for the template itself, in the
-  // maintainers' publish steps, before it is published: STARTER_TEMPLATE=1.
-  it.runIf(process.env.STARTER_TEMPLATE === '1')('in the template, each one a learner fills in still has a TODO:', () => {
+  // template's CI and the maintainers' publish steps: STARTER_TESTS=all.
+  it.runIf(TEMPLATE_MODE)('in the template, each one a learner fills in still has a TODO:', () => {
     for (const file of TEMPLATES.filter((name) => name !== 'docs/decisions/README.md')) {
       expect(read(file), file).toContain('TODO:')
     }

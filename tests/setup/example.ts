@@ -1,10 +1,10 @@
 // What this copy of the starter still has of the Campus Cycle example, for tests that test the example
-// itself. A team that renames the site (docs/guides/recipes.md, R1) or removes the example collections
-// (npm run remove-example) keeps a green CI: a test about the workshops runs only while the site has
-// them, and a test that needs the site's name reads it from src/content, never a typed copy.
+// itself. After npm run remove-example, a test about the workshops runs only while the site has them.
+// Once the site has a name of its own (docs/guides/recipes.md, R1), only the tests in tests/site and
+// the browser checks of checks/checks.json still run: scripts/lib/starterTests.mjs decides that.
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { SITE_NAME } from '../../src/content/campus-cycle'
+import { starterTests } from '../../scripts/lib/starterTests.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const config = readFileSync(`${root}src/payload.config.ts`, 'utf8')
@@ -46,6 +46,7 @@ export const EXAMPLE = {
   // The repair clinic and its booking task (example task 2).
   clinic: hasCollection('clinics') && hasCollection('timeSlots') && hasCollection('bookings') && hasPage('/clinics/[slug]'),
   // Still the Campus Cycle site, not renamed yet: the tests that compare the seed with the course's
-  // Campus Cycle fact sheet run only then (a renamed site has facts of its own).
-  campusCycle: (SITE_NAME as string) === 'Campus Cycle',
+  // Campus Cycle fact sheet run only then (a renamed site has facts of its own), and the browser
+  // checks make their test clinic only then.
+  campusCycle: starterTests() !== 'site',
 }

@@ -154,9 +154,12 @@ with this line, with your own team code:
    `npm run seed`.
 
 **You should see:** your name in the header, the footer and the browser tab, and your tagline on the
-home page. The tests read the name from `src/content`, so `npm test` stays green. With the leftovers
-check at none, a team can switch on CI's leftovers job (the variable `CAMPUS_CYCLE_LEFTOVERS` with the
-value `fail`, see the comment at the end of `.github/workflows/ci.yml`).
+home page. The site now has its own name, so the starter's tests of the Campus Cycle example and of
+the starter itself (`tests/unit`, `tests/integration`) stop running, on your laptop and in CI. The
+tests in `tests/site` hold for any site and keep running; put a test of your own there. With the
+leftovers check at none, a team can switch on CI's leftovers job (the variable
+`CAMPUS_CYCLE_LEFTOVERS` with the value `fail`, see the comment at the end of
+`.github/workflows/ci.yml`).
 
 ---
 

@@ -6,11 +6,15 @@ import { byCriterion, evaluate } from '../../src/checks/checks'
 import { PlaywrightCheckDriver } from './checkDriver'
 import { pagesToCheck, readChecksFile } from './checksFile'
 import { BASE_URL, readFixture } from './helpers'
+import { EXAMPLE } from '../setup/example'
 
 const file = readChecksFile()
 
 for (const page of pagesToCheck(file)) {
   test(`checks.json: ${page.path}`, async ({ browser }, testInfo) => {
+    // {test-clinic} is the clinic the example's set-up makes. A site that is no longer the example has
+    // no such record: give such a page the address of a record your seed adds.
+    test.skip(!EXAMPLE.campusCycle && page.path.includes('{'), 'This address needs the test clinic of the Campus Cycle example.')
     const path = page.path.replace('{test-clinic}', () => readFixture().clinic.slug)
     // The evaluator starts every group at 1100 px; at the phone width, each group first narrows the page.
     const width = testInfo.project.use.viewport?.width

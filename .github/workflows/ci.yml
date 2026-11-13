@@ -8,6 +8,10 @@
 #   browser-checks the built site in a real browser at 390 and 1100 px, with axe (npm run check)
 #   ai-note        the pull request's AI note is filled in (pull requests only)
 #   leftovers      the Campus Cycle example is replaced (off until you switch it on)
+#
+# Once your site has its own name (docs/guides/recipes.md, R1), the starter's tests of the Campus Cycle
+# example and of the starter itself stop running here. The tests in tests/site and the browser checks
+# of your own checks/checks.json keep running.
 name: CI
 
 on:
@@ -28,6 +32,11 @@ concurrency:
 # CI only reads the repository.
 permissions:
   contents: read
+
+# In the starter's own repository every test runs, whatever the site is called
+# (scripts/lib/starterTests.mjs). In your copy this setting is empty.
+env:
+  STARTER_TESTS: ${{ github.repository == 'buildingbetterwebsites/campuscycle-starter' && 'all' || '' }}
 
 jobs:
   test:

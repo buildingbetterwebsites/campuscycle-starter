@@ -14,7 +14,19 @@ export function runFixture(command: 'create' | 'remove' | 'break' | 'mend'): str
   })
 }
 
+// A site that has just started (or a database that was asleep) can take seconds to answer its first
+// request. Ask each kind of page once, allowing 15 seconds, so the checks themselves start warm.
+async function warmUp(paths: string[]) {
+  for (const path of paths) {
+    const response = await fetch(new URL(path, BASE_URL), { signal: AbortSignal.timeout(15_000) })
+    if (response.status >= 500) throw new Error(`${path} answered ${response.status} while warming up: is the site running at ${BASE_URL}?`)
+  }
+}
+
 export default async function globalSetup() {
+  // A site that is no longer the Campus Cycle example may have no clinics: no test clinic is made.
+  if (!EXAMPLE.campusCycle) return warmUp(['/'])
+
   // In case an earlier run stopped while the clinics table was renamed (user-tasks.spec.ts).
   runFixture('mend')
   const output = runFixture('create')
@@ -22,11 +34,6 @@ export default async function globalSetup() {
   if (!line) throw new Error(`The test clinic could not be made. The fixture said:\n${output}`)
   process.env.E2E_FIXTURE = line.slice('E2E_FIXTURE='.length)
 
-  // A site that has just started (or a database that was asleep) can take seconds to answer its first
-  // request. Ask each kind of page once, allowing 15 seconds, so the checks themselves start warm.
   const { clinic } = JSON.parse(process.env.E2E_FIXTURE) as { clinic: { slug: string } }
-  for (const path of ['/', ...(EXAMPLE.workshopPages ? ['/workshops'] : []), '/clinics', `/clinics/${clinic.slug}`]) {
-    const response = await fetch(new URL(path, BASE_URL), { signal: AbortSignal.timeout(15_000) })
-    if (response.status >= 500) throw new Error(`${path} answered ${response.status} while warming up: is the site running at ${BASE_URL}?`)
-  }
+  await warmUp(['/', ...(EXAMPLE.workshopPages ? ['/workshops'] : []), '/clinics', `/clinics/${clinic.slug}`])
 }

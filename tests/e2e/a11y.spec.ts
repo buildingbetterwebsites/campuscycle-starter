@@ -3,12 +3,21 @@
 // findings are printed but do not fail it.
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { pagesToCheck, readChecksFile } from './checksFile'
 import { readFixture } from './helpers'
 import { EXAMPLE } from '../setup/example'
 
+type PageToScan = { name: string; path: string | (() => string); status?: number }
+
+// A site that is no longer the Campus Cycle example: the pages its own checks/checks.json lists. An
+// address with a {placeholder} needs a record the example's set-up makes, so it is left out.
+const sitePages: PageToScan[] = pagesToCheck(readChecksFile())
+  .filter((page) => !page.path.includes('{'))
+  .map((page) => ({ name: page.path, path: page.path }))
+
 // The test clinic's pages are known only once the global set-up has made it, so those two paths are
 // read inside the check (readFixture), not here.
-const pages = [
+const examplePages: PageToScan[] = [
   { name: 'home', path: '/' },
   // The example's workshop pages, while the site has them (tests/setup/example.ts).
   ...(EXAMPLE.workshopPages
@@ -28,7 +37,7 @@ const pages = [
   { name: 'page not found', path: '/no-such-page', status: 404 },
 ]
 
-for (const { name, path: where, status = 200 } of pages) {
+for (const { name, path: where, status = 200 } of EXAMPLE.campusCycle ? examplePages : sitePages) {
   test(`${name}: no serious or critical accessibility problems`, async ({ page }, testInfo) => {
     const path = typeof where === 'function' ? where() : where
     const response = await page.goto(path)
@@ -56,6 +65,7 @@ for (const { name, path: where, status = 200 } of pages) {
 // fails: then replace its last two lines with a check for the page's heading ("We could not find that
 // page") and its link "Go to the home page", and remove the limit from the UX guide.
 test('page not found, without JavaScript: a 404, and today the empty page Next.js sends (known limit)', async ({ browser }) => {
+  test.skip(!EXAMPLE.campusCycle, 'The starter keeps this check on a known limit of Next.js.')
   const context = await browser.newContext({ javaScriptEnabled: false })
   try {
     const page = await context.newPage()

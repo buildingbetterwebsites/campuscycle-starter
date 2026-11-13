@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "tests/unit/**/*",
+    "tests/integration/**/*",
+    "tests/fixtures/**/*",
+    "tests/setup/elements.ts",
+    "tests/setup/title.ts",
+    "tests/e2e/fixture.ts",
+    "tests/e2e/user-tasks.spec.ts"
+  ]
+}

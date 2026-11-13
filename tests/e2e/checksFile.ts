@@ -1,6 +1,6 @@
 // Reads checks/checks.json: the pages to check and, for each, its groups of checks in the course
 // evaluator's own vocabulary (src/checks/checks.ts). Shared by the browser check (checks.spec.ts) and
-// the unit test that keeps the file valid (tests/unit/checks-json.test.ts).
+// the test that keeps the file valid (tests/site/checks-json.test.ts).
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { CheckGroup } from '../../src/checks/checks'
