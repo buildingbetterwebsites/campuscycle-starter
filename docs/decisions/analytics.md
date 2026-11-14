@@ -1,9 +1,12 @@
 # Decision: analytics
 
 Whether the site measures how it is used, and with which tool. Its reader comes later, with one
-question: can I change this, and what happens if I do? Fill in every place marked TODO. The grey boxes
-are guidance: the course's checks do not read them, and you may delete them when you are done. The
-starter's analytics are off until `NEXT_PUBLIC_ANALYTICS` names a tool; see `src/lib/analytics.ts`.
+question: can I change this, and what happens if I do? Fill in every place marked TODO. The starter's
+analytics are off until `NEXT_PUBLIC_ANALYTICS` names a tool; see `src/lib/analytics.ts`.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 ## The question
 
@@ -72,11 +75,7 @@ will answer our question.
 
 </td></tr></table>
 
-| Reason | Its evidence: what we checked |
-| --- | --- |
-| TODO: | TODO: |
-| TODO: | TODO: |
-
+- **Why we chose it:** TODO: each reason with what you checked
 - **What this evidence cannot tell us:** TODO:
 
 ## Consequences

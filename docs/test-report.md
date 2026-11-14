@@ -1,8 +1,11 @@
 # Test report
 
 What you learned by watching people use your site. It is read by whoever decides whether the site can
-go live, and later by whoever improves it. Fill in every place marked TODO. The grey boxes are
-guidance: the course's checks do not read them, and you may delete them when you are done.
+go live, and later by whoever improves it. Fill in every place marked TODO.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 In a team, write under the title who wrote this document, by first name or GitHub username.
 
@@ -71,9 +74,9 @@ and a child without asking.
 </td></tr></table>
 
 - **Finding:** TODO: the number of the finding in the table above
-- **Fixed or not fixed, and why:** TODO:
+- **Fixed or not fixed:** TODO: with the reason
 - **What we changed:** TODO:
-- **Pull request:** TODO: its number, for example #14
+- **Pull request:** TODO: its number after a #
 
 ## The release check
 

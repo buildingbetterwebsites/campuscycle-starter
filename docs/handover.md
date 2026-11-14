@@ -1,8 +1,11 @@
 # Hand-over
 
-Everything the next owner of this site needs. Fill in every place marked TODO. The grey boxes are
-guidance: the course's checks do not read them, and you may delete them when you are done. Never
-write a password, a secret or a connection string in this file.
+Everything the next owner of this site needs. Fill in every place marked TODO. Never write a
+password, a secret or a connection string in this file.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 In a team, write under the title who wrote this document, by first name or GitHub username.
 
@@ -116,9 +119,10 @@ How to run, change and deploy the site safely:
 
 <table width="100%"><tr></tr><tr><td>
 
-**Guidance.** The lines below hold the starter's own rules and the course's default steps. Keep them,
-or change the last two to your own steps: who merges, the checks that must pass, and how you go back
-to the version before. Vercel's **Instant Rollback** runs no build, so go back with **Revert**.
+**Guidance.** The lines below hold the starter's own rules and the course's default steps. Keep the
+two steps "How a change goes live" and "How we go back", or change them to your own steps: who
+merges, the checks that must pass, and how you go back to the version before. Vercel's **Instant
+Rollback** runs no build, so go back with **Revert**.
 
 **Example of a step of your own:** A change to the reservation form is merged only after a second
 member has tried it on the preview.
@@ -129,9 +133,10 @@ member has tried it on the preview.
 - TODO: anything your project does differently, or write "Nothing different".
 - A change reaches the live site through `main`. Never use Vercel's "Promote to Production": use
   Redeploy, and check that the build log shows `MIGRATIONS: verified committed migrations`.
-- A change to the code goes live through a branch and a pull request with its preview and its AI
-  note. Its author waits for the starter's checks, reads what they say, and merges it into `main`.
-- To go back to the version before, use **Revert** on the merged pull request on GitHub. It opens a
-  new pull request that undoes the change: merge it like any other, so that its build runs. A revert
-  leaves the database as it is: a migration that has already run stays.
-- TODO: keep the last two lines or change them to your own steps, then delete this line.
+- **How a change goes live:** A change to the code goes live through a branch and a pull request
+  with its preview and its AI note. Its author waits for the starter's checks, reads what they say,
+  and merges it into `main`.
+- **How we go back:** To go back to the version before, use **Revert** on the merged pull request on
+  GitHub. It opens a new pull request that undoes the change: merge it like any other, so that its
+  build runs. A revert leaves the database as it is: a migration that has already run stays.
+- TODO: keep the steps "How a change goes live" and "How we go back" or change them, then delete this line.

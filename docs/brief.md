@@ -1,9 +1,12 @@
 # Project brief
 
 The short description of your site: who it is for and what it does. Its reader has never seen your
-site, so write what a stranger needs to understand it. Fill in every place marked TODO. The grey boxes
-are guidance: the course's checks do not read them, and you may delete them when you are done. Keep
-the brief to one page; the details belong in `docs/requirements.md`.
+site, so write what a stranger needs to understand it. Fill in every place marked TODO. Keep the brief
+to one page; the details belong in `docs/requirements.md`.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 In a team, write under the title who wrote this document, by first name or GitHub username.
 

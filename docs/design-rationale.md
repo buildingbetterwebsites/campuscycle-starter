@@ -3,8 +3,11 @@ For teams; a learner working alone can delete this file.
 # Design rationale
 
 Why your site looks and behaves the way it does. It is read by whoever changes the design later, so
-they know what each choice protects. Fill in every place marked TODO. The grey boxes are guidance:
-the course's checks do not read them, and you may delete them when you are done.
+they know what each choice protects. Fill in every place marked TODO.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 Write under the title who wrote this document, by first name or GitHub username.
 

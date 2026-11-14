@@ -2,8 +2,11 @@
 
 What the site must do, written so that someone else can check it. Each requirement expresses a need of
 your users, and has a check that passes or fails on the live site. Fill in every place marked TODO, and
-add a row per requirement. The grey box is guidance: the course's checks do not read it, and you may
-delete it when you are done.
+add a row per requirement.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 In a team, write under the title who wrote this document, by first name or GitHub username.
 

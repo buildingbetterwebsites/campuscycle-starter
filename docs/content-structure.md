@@ -3,8 +3,11 @@ For teams; a learner working alone can delete this file.
 # Content and structure
 
 What content your site holds and how it is organised. It is read by everyone who adds a page or a
-field, so the site keeps one structure. Fill in every place marked TODO. The grey boxes are guidance:
-the course's checks do not read them, and you may delete them when you are done.
+field, so the site keeps one structure. Fill in every place marked TODO.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 Write under the title who wrote this document, by first name or GitHub username.
 
@@ -110,7 +113,7 @@ users use, and give your reason where a choice was not obvious.
 
 </td></tr></table>
 
-- **The menu, in order:** TODO:
+- **The words in our main menu:** TODO: in the order they appear
 - **Why users will understand these words:** TODO:
 
 ## Each user task, step by step

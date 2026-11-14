@@ -3,8 +3,11 @@ For teams; a learner working alone can delete this file.
 # Team agreement
 
 How your team works together. Every member reads it at the start, and you read it again when something
-goes wrong. Fill in every place marked TODO. The grey boxes are guidance: the course's checks do not
-read them, and you may delete them when you are done.
+goes wrong. Fill in every place marked TODO.
+
+The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
+from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
+it, and delete a box, a row or a line that you do not need.
 
 ## Members, roles and pairs
 
@@ -22,8 +25,9 @@ The default for each team size:
 - **Four members:** the same, and the member with *design and accessibility* also holds *research
   and testing*. Each task role pairs with one of the two members who hold two roles.
 
-In a team of five or four, the same name stands in two rows. Your team may share the roles
-differently. Then write how, and why, in the last line.
+In a team of five or four, the same name stands in two rows. In a team of five, the member with two
+roles writes "alone" in the last column. Your team may share the roles differently. Then write how,
+and why, in the last line.
 
 **Example:** Aya (the transactional task) and Ben (design and accessibility) are the pair for our
 first task: reserve a seat at an event.
@@ -45,7 +49,7 @@ first task: reserve a seat at an event.
 
 <table width="100%"><tr></tr><tr><td>
 
-**Guidance.** One line for each of the three points below is enough. Use one channel for the whole
+**Guidance.** One line for each of the four points below is enough. Use one channel for the whole
 team.
 
 **Example:** We use one team chat for everything about the project, and we answer a teammate within
@@ -56,7 +60,7 @@ chat.
 
 - **Where we talk:** TODO: a chat, a call, in person
 - **How quickly we answer a teammate:** TODO:
-- **When we meet, and for how long:** TODO:
+- **When and how long we meet:** TODO:
 - **Where we write down what we agreed:** TODO:
 
 ## How we decide
@@ -125,9 +129,8 @@ no AI tool was used, the note says "No AI used".
 
 <table width="100%"><tr></tr><tr><td>
 
-**Guidance.** Agree this now, while everyone is calm. One line for each of the four points below is
-enough. You record what happened by changing this agreement when you share the roles or the work
-again.
+**Guidance.** Agree this now, while everyone is calm. One line for each of the three points below is
+enough. The last line is the course's default: keep it or change it.
 
 **Example:** If a member does not answer for three working days, their pair partner contacts them
 directly. If a task is still open a week after its date, we agree a new date at the weekly meeting
@@ -137,9 +140,9 @@ and update this agreement.
 </td></tr></table>
 
 - **What counts as stopping for us:** TODO: for example no answer for a number of days, or a task left open after its date
-- **What we do first, inside the pair:** TODO:
-- **What we do next, as a whole team:** TODO: with a new task and a date
-- **How we record what happened:** TODO:
+- **What the pair does first:** TODO:
+- **What the whole team does next:** TODO: with a new task and a date
+- **How we record what happened:** We change this agreement when we share the roles or the work again.
 
 ## Agreed by
 
