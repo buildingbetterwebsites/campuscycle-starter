@@ -1,6 +1,6 @@
 # Hand-over
 
-Everything the next owner of this site needs. Fill in every place marked TODO. Never write a
+Everything the next owner of this site needs. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in. Never write a
 password, a secret or a connection string in this file.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs

@@ -1,7 +1,7 @@
 # Decision: analytics
 
 Whether the site measures how it is used, and with which tool. Its reader comes later, with one
-question: can I change this, and what happens if I do? Fill in every place marked TODO. The starter's
+question: can I change this, and what happens if I do? Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in. The starter's
 analytics are off until `NEXT_PUBLIC_ANALYTICS` names a tool; see `src/lib/analytics.ts`.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs

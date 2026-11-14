@@ -3,7 +3,7 @@ For teams; a learner working alone can delete this file.
 # Content and structure
 
 What content your site holds and how it is organised. It is read by everyone who adds a page or a
-field, so the site keeps one structure. Fill in every place marked TODO.
+field, so the site keeps one structure. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
 from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside

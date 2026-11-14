@@ -1,8 +1,7 @@
 # Requirements
 
 What the site must do, written so that someone else can check it. Each requirement expresses a need of
-your users, and has a check that passes or fails on the live site. Fill in every place marked TODO, and
-add a row per requirement.
+your users, and has a check that passes or fails on the live site. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in. Add a row per requirement.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
 from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
