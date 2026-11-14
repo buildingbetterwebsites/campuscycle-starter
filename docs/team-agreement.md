@@ -3,11 +3,17 @@ For teams; a learner working alone can delete this file.
 # Team agreement
 
 How your team works together. Every member reads it at the start, and you read it again when something
-goes wrong. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in.
+goes wrong.
 
-The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
-from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
-it, and delete a box, a row or a line that you do not need.
+**How to fill in this file**
+
+- Write your own text in the lines and tables under each grey box.
+- Replace every TODO, and the hint after it, with your own text. A section that still holds a TODO
+  counts as not filled in.
+- Delete a line or a table row that you do not use.
+- The grey boxes are guidance. The course's checks do not read them, so you may keep them or delete
+  them. In the editor, a box is every line from the one that starts with `<table` to the line
+  `</td></tr></table>`: to delete a box, delete all of those lines.
 
 ## Members, roles and pairs
 
