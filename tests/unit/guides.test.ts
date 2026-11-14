@@ -593,10 +593,11 @@ describe('the project document templates', () => {
 
   it('TODO: marks only the places a learner fills in, never an instruction', () => {
     // The final check passes once no TODO: is left, so an instruction that said "TODO:" would stay
-    // behind in a finished document and fail it.
+    // behind in a finished document and fail it. A place to fill in is a line that starts with TODO:
+    // (also as a list item), a labelled line (`- **Label:** TODO: …`) or a table cell.
     for (const file of TEMPLATES) {
       for (const line of read(file).split(/\r?\n/).filter((text) => text.includes('TODO:'))) {
-        expect(line, file).toMatch(/^\s*((\d+\.|-)\s+)?TODO:|\|\s*TODO:/)
+        expect(line, file).toMatch(/^\s*((\d+\.|-)\s+)?(\*\*[^*]+:\*\*\s+)?TODO:|\|\s*TODO:/)
       }
     }
   })

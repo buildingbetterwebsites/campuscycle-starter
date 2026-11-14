@@ -25,9 +25,10 @@ why things are the way they are, and how to change them. A record is about half 
 
 Your project needs **at least two decision records**. Two are ready for you to fill in, as a start:
 [analytics.md](analytics.md) and [integration.md](integration.md). You may rename them or add more.
-Under each heading, those two files have a box marked Tip with guidance, the options and an example.
-The course's checks do not read those boxes, and you may delete them when you are done. For a record
-of your own, add a file with the same seven headings and write your text under each one.
+Under each heading, those two files have a grey box with guidance, the options and an example, and
+below it the lines and tables to fill in. The course's checks do not read the grey boxes, and you may
+delete them when you are done. For a record of your own, copy one of the two files and replace its
+text.
 
 The course's final check reads every `.md` file in this folder except this README: at least two of
 them must be filled in, with nothing left marked TODO, whatever their names.
