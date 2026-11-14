@@ -25,7 +25,7 @@ At least two, each with its main advantage and drawback (no integration at all i
 ## The decision
 
 Which option you chose. Once it is installed: what you installed, where its settings are, and how you
-checked that it does what you expected (the final rubric asks for it).
+checked that it does what you expected (the grading list asks for it).
 
 TODO: the option you chose.
 
