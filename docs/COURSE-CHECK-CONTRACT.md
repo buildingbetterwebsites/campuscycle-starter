@@ -176,7 +176,7 @@ The course app's final "Check my work" reads four files by path: `docs/brief.md`
 
 A team's final hand-in checks the same files and folder, plus three team files, each read by path and passing when it exists and contains no `TODO:`: `docs/team-agreement.md`, `docs/content-structure.md` and `docs/design-rationale.md`. An individual final hand-in never reads them.
 
-In the templates, `TODO:` marks only the places a learner fills in. `docs/decisions/README.md` holds
+In the templates, `TODO:` marks only the places a learner fills in. The guidance sits in boxes: blockquotes whose first line is `> [!TIP]`, which GitHub shows as a box marked Tip. A box never holds `TODO:`, a heading or a table, and the course's checks leave the boxes out when they read a document, so a learner may keep them or delete them. `docs/decisions/README.md` holds
 instructions only and has no `TODO:`, which no longer matters to the check. The section headings inside the templates follow the chapters 'The project documents' and 'Finishing and handing over'; change them only together with those chapters. The paths are fixed.
 
 ## What the checker should not assume
