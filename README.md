@@ -73,7 +73,7 @@ In short (the [local set-up guide](docs/guides/local-setup.md) explains each ste
 | `src/migrations` | The migrations: every change to the database's tables, in order |
 | `scripts` | The build, the migration and seed runners, the guard that protects your live database, and the CI checks |
 | `docs/guides` | The guides: [first hour](docs/guides/first-hour.md), [local set-up](docs/guides/local-setup.md), [troubleshooting](docs/guides/troubleshooting.md), [UX decisions](docs/guides/ux-decisions.md), [integrations](docs/guides/integrations.md), [recipes](docs/guides/recipes.md) |
-| `docs/brief.md`, `docs/requirements.md`, `docs/decisions`, `docs/test-report.md`, `docs/handover.md` | Your project documents, to fill in, with at least two decision records in `docs/decisions` |
+| `docs/brief.md`, `docs/requirements.md`, `docs/decisions`, `docs/test-report.md`, `docs/handover.md` | Your project documents, to fill in, with at least two decision records in `docs/decisions`. Under each heading, a grey box gives guidance, the options and an example. The course's checks do not read the grey boxes, and you may delete them when you are done |
 
 If you work in a team, you also fill in `docs/team-agreement.md`, `docs/content-structure.md` and `docs/design-rationale.md`.
 A team also names the collection its transactional task saves into in `src/course-check.config.ts`, so the course's checks can see that task's records land.
