@@ -3,7 +3,7 @@ For teams; a learner working alone can delete this file.
 # Team agreement
 
 How your team works together. Every member reads it at the start, and you read it again when something
-goes wrong. Fill in every place marked TODO.
+goes wrong. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
 from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside

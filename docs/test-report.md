@@ -1,7 +1,7 @@
 # Test report
 
 What you learned by watching people use your site. It is read by whoever decides whether the site can
-go live, and later by whoever improves it. Fill in every place marked TODO.
+go live, and later by whoever improves it. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
 from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside

@@ -3,7 +3,7 @@ For teams; a learner working alone can delete this file.
 # Design rationale
 
 Why your site looks and behaves the way it does. It is read by whoever changes the design later, so
-they know what each choice protects. Fill in every place marked TODO.
+they know what each choice protects. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
 from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside

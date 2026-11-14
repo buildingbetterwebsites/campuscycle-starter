@@ -1,7 +1,7 @@
 # Project brief
 
 The short description of your site: who it is for and what it does. Its reader has never seen your
-site, so write what a stranger needs to understand it. Fill in every place marked TODO. Keep the brief
+site, so write what a stranger needs to understand it. Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in. Keep the brief
 to one page; the details belong in `docs/requirements.md`.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs

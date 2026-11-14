@@ -1,7 +1,7 @@
 # Decision: an integration
 
 Whether the site connects to another service, and to which. Its reader comes later, with one
-question: can I change this, and what happens if I do? Fill in every place marked TODO.
+question: can I change this, and what happens if I do? Replace every TODO, and the hint after it, with your own text: a section that still holds a TODO counts as not filled in.
 
 The grey boxes are guidance, and the course's checks do not read them. In the file's text, a box runs
 from a line that starts with `<table` to the line `</td></tr></table>`: write your own text outside
